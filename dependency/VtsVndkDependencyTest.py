@@ -24,7 +24,6 @@ import tempfile
 from vts.runners.host import asserts
 from vts.runners.host import base_test_with_webdb
 from vts.runners.host import test_runner
-from vts.runners.host import utils
 from vts.utils.python.controllers import android_device
 from vts.testcases.vndk.dependency import elf_parser
 
@@ -39,6 +38,8 @@ class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
     """
     _SHELL_NAME = "vendor_dep_test_shell"
     _VENDOR_PATH = "/vendor"
+    _SAME_PROCESS_DIR_32 = "/vendor/lib/sameprocess"
+    _SAME_PROCESS_DIR_64 = "/vendor/lib64/sameprocess"
     _LOW_LEVEL_NDK = [
         "libc.so",
         "libm.so",
@@ -55,7 +56,7 @@ class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
         "vulkan.*\\.so$",
         "libRSDriver.*\\.so$",
         "libPVRRS\\.so$",
-        "gralloc-mapper@\\d+.\\d+-impl\\.so$",
+        "android\\.hardware\\.graphics\\.mapper@\\d+\\.\\d+-impl\\.so$"
     ]]
 
     def setUpClass(self):
@@ -63,12 +64,30 @@ class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
         self.dut = self.registerController(android_device)[0]
         self.dut.shell.InvokeTerminal(self._SHELL_NAME)
         self._temp_dir = tempfile.mkdtemp()
-        self._vendor_libs = []
+        logging.info("adb pull %s %s", self._VENDOR_PATH, self._temp_dir)
+        pull_output = self.dut.adb.pull(self._VENDOR_PATH, self._temp_dir)
+        logging.debug(pull_output)
+        self._vendor_libs = self._listSharedLibraries(self._temp_dir)
+        logging.info("Vendor libraries: " + str(self._vendor_libs))
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
         logging.info("Delete %s", self._temp_dir)
         shutil.rmtree(self._temp_dir)
+
+    def _isSameProcessLibrary(self, lib_name):
+        """Checks whether a library is same-process.
+
+        Args:
+            lib_name: String. The name of the library.
+
+        Returns:
+            A boolean representing whether the library is same-process.
+        """
+        for pattern in self._SAME_PROCESS_NDK:
+            if pattern.match(lib_name):
+                return True
+        return False
 
     def _isAllowedDependency(self, lib_name):
         """Checks whether a library dependency is allowed.
@@ -86,12 +105,27 @@ class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
         """
         if lib_name in self._vendor_libs or lib_name in self._LOW_LEVEL_NDK:
             return True
-        for pattern in self._SAME_PROCESS_NDK:
-            if pattern.match(lib_name):
-                return True
+        if self._isSameProcessLibrary(lib_name):
+            return True
         return False
 
-    def _listSharedLibraries(self, path):
+    @staticmethod
+    def _iterateFiles(dir_path):
+        """A generator yielding regular files in a directory recursively.
+
+        Args:
+            dir_path: String. The path to search.
+
+        Yields:
+            A tuple of strings (directory, file). The directory containing
+            the file and the file name.
+        """
+        for root_dir, dir_names, file_names in os.walk(dir_path):
+            for file_name in file_names:
+                yield root_dir, file_name
+
+    @staticmethod
+    def _listSharedLibraries(path):
         """Finds all shared libraries under a directory.
 
         Args:
@@ -101,44 +135,59 @@ class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
             Set of strings. The names of the found libraries.
         """
         results = set()
-        for root_dir, dir_names, file_names in os.walk(path):
-            for file_name in file_names:
-                if file_name.endswith(".so"):
-                    results.add(file_name)
+        for root_dir, file_name in VtsVndkDependencyTest._iterateFiles(path):
+            if file_name.endswith(".so"):
+                results.add(file_name)
         return results
+
+    def testSameProcessLibrary(self):
+        """Checks if same-process directory contains only allowed libraries."""
+        dev_sp_dirs = [self._SAME_PROCESS_DIR_32]
+        if self.dut.is64Bit:
+            dev_sp_dirs.append(self._SAME_PROCESS_DIR_64)
+        error_count = 0
+        for dev_sp_dir in dev_sp_dirs:
+            sp_dir = os.path.join(self._temp_dir, dev_sp_dir)
+            if not os.path.isdir(sp_dir):
+                logging.warning("%s is not a directory", sp_dir)
+                continue
+            logging.info("Enter %s", sp_dir)
+            for root_dir, file_name in self._iterateFiles(sp_dir):
+                full_path = os.path.join(root_dir, file_name)
+                if self._isSameProcessLibrary(file_name):
+                    logging.info("%s is a same-process lib", full_path)
+                    continue
+                error_count += 1
+                logging.error("%s is not a same-process lib", full_path)
+        asserts.assertEqual(error_count, 0,
+                "Total number of errors: " + str(error_count))
 
     def testElfDependency(self):
         """Scans library/executable dependency on vendor partition."""
         if not elf_parser.ElfParser.isSupported():
             asserts.fail("readelf is not available")
-        logging.info("adb pull %s %s", self._VENDOR_PATH, self._temp_dir)
-        pull_output = self.dut.adb.pull(self._VENDOR_PATH, self._temp_dir)
-        logging.debug(pull_output)
-        self._vendor_libs = self._listSharedLibraries(self._temp_dir)
-        logging.info("Vendor libraries: " + str(self._vendor_libs))
         error_count = 0
-        for root_dir, dir_names, file_names in os.walk(self._temp_dir):
-            for file_name in file_names:
-                file_path = os.path.join(root_dir, file_name)
-                elf = elf_parser.ElfParser(file_path)
-                if not elf.isValid():
-                    logging.info("%s is not an ELF file", file_path)
-                    continue
-                try:
-                    dep_libs = elf.listDependencies()
-                except OSError as e:
-                    error_count += 1
-                    logging.exception("Cannot read %s: %s", file_path, str(e))
-                    continue
-                logging.info("%s depends on: %s", file_path, str(dep_libs))
-                disallowed_libs = filter(
-                        lambda x: not self._isAllowedDependency(x), dep_libs)
-                if len(disallowed_libs) == 0:
-                    continue
+        for root_dir, file_name in self._iterateFiles(self._temp_dir):
+            file_path = os.path.join(root_dir, file_name)
+            elf = elf_parser.ElfParser(file_path)
+            if not elf.isValid():
+                logging.info("%s is not an ELF file", file_path)
+                continue
+            try:
+                dep_libs = elf.listDependencies()
+            except OSError as e:
                 error_count += 1
-                logging.error("%s depends on disallowed libs: %s",
-                        file_path.replace(self._temp_dir, "", 1),
-                        str(disallowed_libs))
+                logging.exception("Cannot read %s: %s", file_path, str(e))
+                continue
+            logging.info("%s depends on: %s", file_path, str(dep_libs))
+            disallowed_libs = filter(
+                    lambda x: not self._isAllowedDependency(x), dep_libs)
+            if not disallowed_libs:
+                continue
+            error_count += 1
+            logging.error("%s depends on disallowed libs: %s",
+                    file_path.replace(self._temp_dir, "", 1),
+                    str(disallowed_libs))
         asserts.assertEqual(error_count, 0,
                 "Total number of errors: " + str(error_count))
 
