@@ -22,12 +22,12 @@ import shutil
 import tempfile
 
 from vts.runners.host import asserts
-from vts.runners.host import base_test_with_webdb
+from vts.runners.host import base_test
 from vts.runners.host import test_runner
 from vts.utils.python.controllers import android_device
 from vts.testcases.vndk.dependency import elf_parser
 
-class VtsVndkDependencyTest(base_test_with_webdb.BaseTestWithWebDbClass):
+class VtsVndkDependencyTest(base_test.BaseTestClass):
     """A test case to verify vendor library dependency.
 
     Attributes:
