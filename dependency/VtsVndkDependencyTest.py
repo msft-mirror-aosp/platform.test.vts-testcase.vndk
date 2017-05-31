@@ -27,8 +27,8 @@ from vts.runners.host import test_runner
 from vts.runners.host import utils
 from vts.utils.python.controllers import android_device
 from vts.utils.python.file import file_utils
+from vts.utils.python.library import elf_parser
 from vts.utils.python.os import path_utils
-from vts.testcases.vndk.dependency import elf_parser
 
 
 class VtsVndkDependencyTest(base_test.BaseTestClass):
@@ -149,12 +149,12 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                 logging.debug("%s is not an ELF file", target_path)
                 continue
             try:
-                deps = elf.listDependencies()
+                deps = elf.ListDependencies()
             except elf_parser.ElfError as e:
                 elf_error_handler(target_path, e)
                 continue
             finally:
-                elf.close()
+                elf.Close()
 
             logging.info("%s depends on: %s", target_path, ", ".join(deps))
             objs.append(self.ElfObject(target_path, elf.bitness, deps))
