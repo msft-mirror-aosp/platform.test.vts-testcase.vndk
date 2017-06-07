@@ -56,7 +56,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         "libc.so",
         "libdl.so",
         "liblog.so",
-        "libm.so"
+        "libm.so",
+        "libz.so"
     ]
     # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _SAME_PROCESS_HAL = [re.compile(p) for p in [
