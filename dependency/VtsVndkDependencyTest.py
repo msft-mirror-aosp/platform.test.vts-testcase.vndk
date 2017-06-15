@@ -50,16 +50,17 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     _TARGET_VNDK_SP_DIR_32 = "/system/lib/vndk-sp"
     _TARGET_VNDK_SP_DIR_64 = "/system/lib64/vndk-sp"
 
-    # copied from build/soong/cc/config/global.go
+    # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _LOW_LEVEL_NDK = [
-        "ld-android.so",
+        "libandroid_net.so",
         "libc.so",
         "libdl.so",
         "liblog.so",
         "libm.so",
+        "libstdc++.so",
+        "libvndksupport.so",
         "libz.so"
     ]
-    # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _SAME_PROCESS_HAL = [re.compile(p) for p in [
         "android\\.hardware\\.graphics\\.mapper@\\d+\\.\\d+-impl\\.so$",
         "gralloc\\..*\\.so$",
