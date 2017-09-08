@@ -50,10 +50,11 @@ VNDK_SP_INDIRECT_PRIVATE = "VNDK-SP-Indirect-Private"
 _GOLDEN_DIR = os.path.join("vts", "testcases", "vndk", "golden")
 
 
-def LoadVndkLibraryLists(version, *tags):
+def LoadVndkLibraryLists(data_file_path, version, *tags):
     """Find the VNDK libraries with specific tags.
 
     Args:
+        data_file_path: The path to VTS data directory.
         version: A string, the VNDK version.
         *tags: Strings, the tags of the libraries to find.
 
@@ -62,7 +63,8 @@ def LoadVndkLibraryLists(version, *tags):
         one tag in the argument.
         None if the spreadsheet for the version is not found.
     """
-    path = os.path.join(_GOLDEN_DIR, version, "eligible-list.csv")
+    path = os.path.join(data_file_path, _GOLDEN_DIR, version,
+                        "eligible-list.csv")
     if not os.path.isfile(path):
         logging.warning("Cannot load %s.", path)
         return None

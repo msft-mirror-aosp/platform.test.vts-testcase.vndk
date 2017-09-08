@@ -20,6 +20,7 @@ import logging
 from vts.runners.host import asserts
 from vts.runners.host import base_test
 from vts.runners.host import const
+from vts.runners.host import keys
 from vts.runners.host import test_runner
 from vts.testcases.vndk.golden import vndk_data
 
@@ -28,12 +29,15 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
     """A test module to verify libraries opened by running processes.
 
     Attributes:
+        data_file_path: The path to VTS data directory.
         _dut: The AndroidDevice under test.
         _shell: The ShellMirrorObject to execute commands
     """
 
     def setUpClass(self):
-        """Initializes the shell."""
+        """Initializes the data file path and shell."""
+        required_params = [keys.ConfigKeys.IKEY_DATA_FILE_PATH]
+        self.getUserParams(required_params)
         self._dut = self.android_devices[0]
         self._shell = self._dut.shell
 
@@ -94,6 +98,7 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
     def testVendorProcessOpenLibraries(self):
         """Checks if vendor processes load shared libraries on system."""
         vndk_lists = vndk_data.LoadVndkLibraryLists(
+                self.data_file_path,
                 "current",
                 vndk_data.LL_NDK,
                 vndk_data.LL_NDK_INDIRECT,
