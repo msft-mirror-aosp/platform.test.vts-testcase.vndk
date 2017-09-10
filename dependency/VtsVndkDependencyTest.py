@@ -23,6 +23,7 @@ import tempfile
 
 from vts.runners.host import asserts
 from vts.runners.host import base_test
+from vts.runners.host import keys
 from vts.runners.host import test_runner
 from vts.runners.host import utils
 from vts.testcases.vndk.golden import vndk_data
@@ -36,6 +37,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     """A test case to verify vendor library dependency.
 
     Attributes:
+        data_file_path: The path to VTS data directory.
         _dut: The AndroidDevice under test.
         _temp_dir: The temporary directory to which the vendor partition is
                    copied.
@@ -88,6 +90,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
     def setUpClass(self):
         """Initializes device, temporary directory, and VNDK lists."""
+        required_params = [keys.ConfigKeys.IKEY_DATA_FILE_PATH]
+        self.getUserParams(required_params)
         self._dut = self.android_devices[0]
         self._temp_dir = tempfile.mkdtemp()
         logging.info("adb pull %s %s", self._TARGET_VENDOR_DIR, self._temp_dir)
@@ -95,7 +99,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                                          self._temp_dir)
         logging.debug(pull_output)
         vndk_lists = vndk_data.LoadVndkLibraryLists(
-            "current", vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK_SP)
+            self.data_file_path, "current",
+            vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK_SP)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
         self._ll_ndk, self._sp_ndk, self._vndk_sp = (
             set(path_utils.TargetBaseName(path) for path in vndk_list)
