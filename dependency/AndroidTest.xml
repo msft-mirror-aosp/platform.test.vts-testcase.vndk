@@ -20,7 +20,7 @@
     <target_preparer class="com.android.tradefed.targetprep.VtsPythonVirtualenvPreparer">
     </target_preparer>
     <test class="com.android.tradefed.testtype.VtsMultiDeviceTest">
-        <option name="test-module-name" value="VtsVndkDependencyTest" />
+        <option name="test-module-name" value="VtsVndkDependency" />
         <option name="test-case-path" value="vts/testcases/vndk/dependency/VtsVndkDependencyTest" />
     </test>
 </configuration>
