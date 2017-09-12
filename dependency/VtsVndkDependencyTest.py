@@ -45,12 +45,26 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                  /system/lib[64].
         _sp_ndk: Set of strings. The names of same-process NDK libraries in
                  /system/lib[64]/vndk.
+        _vndk: Set of strings. The names of VNDK core libraries in
+               /system/lib[64]/vndk.
         _vndk_sp: Set of strings. The names of VNDK-SP libraries in
                   /system/lib[64]/vndk-sp.
+        _vndk_sp_indirect: Set of strings. The names of VNDK-SP-Indirect
+                           libraries in /system/lib[64]/vndk-sp
         _SAME_PROCESS_HAL: List of patterns. The names of same-process HAL
                            libraries expected to be in /vendor/lib[64].
+        _SP_HAL_LINK_PATHS_32: 32-bit same-process HAL's link paths in
+                               /vendor/lib.
+        _SP_HAL_LINK_PATHS_64: 64-bit same-process HAL's link paths in
+                               /vendor/lib64.
+        _VENDOR_LINK_PATHS_32: 32-bit vendor processes' link paths in
+                               /vendor/lib.
+        _VENDOR_LINK_PATHS_64: 64-bit vendor processes' link paths in
+                               /vendor/lib64.
     """
     _TARGET_VENDOR_DIR = "/vendor"
+    _TARGET_VNDK_SP_EXT_DIR_32 = "/vendor/lib/vndk-sp"
+    _TARGET_VNDK_SP_EXT_DIR_64 = "/vendor/lib64/vndk-sp"
 
     # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _SAME_PROCESS_HAL = [
@@ -68,6 +82,12 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     ]
     _SP_HAL_LINK_PATHS_64 = [
         "/vendor/lib64/egl", "/vendor/lib64/hw", "/vendor/lib64"
+    ]
+    _VENDOR_LINK_PATHS_32 = [
+        "/vendor/lib/hw", "/vendor/lib/egl", "/vendor/lib"
+    ]
+    _VENDOR_LINK_PATHS_64 = [
+        "/vendor/lib64/hw", "/vendor/lib64/egl", "/vendor/lib64"
     ]
 
     class ElfObject(object):
@@ -100,26 +120,32 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         logging.debug(pull_output)
         vndk_lists = vndk_data.LoadVndkLibraryLists(
             self.data_file_path, "current",
-            vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK_SP)
+            vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK,
+            vndk_data.VNDK_SP, vndk_data.VNDK_SP_INDIRECT)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
-        self._ll_ndk, self._sp_ndk, self._vndk_sp = (
+        (self._ll_ndk, self._sp_ndk, self._vndk, self._vndk_sp,
+         self._vndk_sp_indirect) = (
             set(path_utils.TargetBaseName(path) for path in vndk_list)
             for vndk_list in vndk_lists)
         logging.debug("LL_NDK: %s", self._ll_ndk)
         logging.debug("SP_NDK: %s", self._sp_ndk)
+        logging.debug("VNDK: %s", self._vndk)
         logging.debug("VNDK_SP: %s", self._vndk_sp)
+        logging.debug("VNDK_SP_INDIRECT: %s", self._vndk_sp_indirect)
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
         logging.info("Delete %s", self._temp_dir)
         shutil.rmtree(self._temp_dir)
 
-    def _LoadElfObjects(self, host_dir, target_dir, elf_error_handler):
+    def _LoadElfObjects(self, host_dir, target_dir, abi_list,
+                        elf_error_handler):
         """Scans a host directory recursively and loads all ELF files in it.
 
         Args:
             host_dir: The host directory to scan.
             target_dir: The path from which host_dir is copied.
+            abi_list: A list of strings, the ABIs of the ELF files to load.
             elf_error_handler: A function that takes 2 arguments
                                (target_path, exception). It is called when
                                the parser fails to read an ELF file.
@@ -138,6 +164,10 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             except elf_parser.ElfError:
                 logging.debug("%s is not an ELF file", target_path)
                 continue
+            if not any(elf.MatchCpuAbi(x) for x in abi_list):
+                logging.debug("%s does not match the ABI", target_path)
+                elf.Close()
+                continue
             try:
                 deps = elf.ListDependencies()
             except elf_parser.ElfError as e:
@@ -150,66 +180,38 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             objs.append(self.ElfObject(target_path, elf.bitness, deps))
         return objs
 
-    def _IsAllowedSpHalDependency(self, lib_name, linkable_libs):
-        """Checks whether a same-process HAL library dependency is allowed.
-
-        A same-process HAL library is allowed to depend on
-        - Low-level NDK
-        - Same-process NDK
-        - vndk-sp
-        - Other libraries in vendor/lib[64]
+    def _GetVendorLinkPaths(self, bitness):
+        """Returns 32/64-bit vendor processes' link paths.
 
         Args:
-            lib_name: String. The name of the depended library.
-            linkable_libs: Dictionary. The keys are the names of the libraries
-                           which can be linked to same-process HAL.
+            bitness: 32 or 64, the bitness of the link paths..
 
         Returns:
-            A boolean representing whether the dependency is allowed.
+            A list of strings, the vendor processes' link paths.
         """
-        if (lib_name in self._ll_ndk or
-            lib_name in self._sp_ndk or
-            lib_name in self._vndk_sp or
-            lib_name in linkable_libs):
-            return True
-        return False
+        return getattr(self, "_VENDOR_LINK_PATHS_" + str(bitness))
 
     def _GetSpHalLinkPaths(self, bitness):
-        """Returns 32/64-bit same-process HAL link paths"""
+        """Returns 32/64-bit same-process HAL link paths.
+
+        Args:
+            bitness: 32 or 64, the bitness of the link paths.
+
+        Returns:
+           A list of strings, the same-process HAL link paths.
+        """
         return getattr(self, "_SP_HAL_LINK_PATHS_" + str(bitness))
 
-    def _IsInSpHalLinkPaths(self, lib):
-        """Checks whether a library can be linked to same-process HAL.
+    def _GetVndkSpExtDir(self, bitness):
+        """Returns 32/64-bit VNDK-SP extension directory on target device.
 
         Args:
-            lib: ElfObject. The library to check.
+            bitness: 32 or 64, the bitness of VNDK-SP extension.
 
         Returns:
-            True if can be linked to same-process HAL; False otherwise.
+            A string, the path to VNDK-SP extension directory.
         """
-        return lib.target_dir in self._GetSpHalLinkPaths(lib.bitness)
-
-    def _SpHalLinkOrder(self, lib):
-        """Returns the key for sorting libraries in linker search order.
-
-        Args:
-            lib: ElfObject.
-
-        Returns:
-            An integer representing linker search order.
-        """
-        link_paths = self._GetSpHalLinkPaths(lib.bitness)
-        for order in range(len(link_paths)):
-            if lib.target_dir == link_paths[order]:
-                return order
-        order = len(link_paths)
-        if lib.name in self._ll_ndk:
-            return order
-        order += 1
-        if lib.name in self._sp_ndk:
-            return order
-        order += 1
-        return order
+        return getattr(self, "_TARGET_VNDK_SP_EXT_DIR_" + str(bitness))
 
     def _DfsDependencies(self, lib, searched, searchable):
         """Depth-first-search for library dependencies.
@@ -227,63 +229,178 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                 self._DfsDependencies(searchable[dep_name], searched,
                                       searchable)
 
-    def _TestSpHalDependency(self, bitness, objs):
-        """Scans same-process HAL dependency on vendor partition.
+    def _FindVendorLibs(self, bitness, objs):
+        """Finds vendor libraries that can be linked to vendor processes.
+
+        Args:
+            bitness: 32 or 64, the bitness of the returned libraries.
+            objs: List of ElfObject, the libraries/executables on vendor
+                  partition.
 
         Returns:
-            List of tuples (path, dependency_names). The library with
-            disallowed dependencies and list of the dependencies.
+            Set of ElfObject, the vendor libraries including SP-HAL.
         """
-        # map file names to libraries which can be linked to same-process HAL
+        vendor_link_paths = self._GetVendorLinkPaths(bitness)
+        vendor_libs = set(obj for obj in objs if
+                          obj.bitness == bitness and
+                          obj.target_dir in vendor_link_paths)
+        return vendor_libs
+
+    def _FindSpHalLibs(self, bitness, objs):
+        """Finds same-process HAL libraries and their dependencies.
+
+        Args:
+            bitness: 32 or 64, the bitness of the returned libraries.
+            objs: List of ElfObject, the libraries/executables on vendor
+                  partition.
+
+        Returns:
+            Set of ElfObject, the same-process HAL libraries and their
+            dependencies.
+        """
+        # Map file names to libraries which can be linked to same-process HAL
+        sp_hal_link_paths = self._GetSpHalLinkPaths(bitness)
+        vendor_libs = [obj for obj in objs if
+                       obj.bitness == bitness and
+                       obj.target_dir in sp_hal_link_paths]
         linkable_libs = dict()
-        for obj in [
-                x for x in objs
-                if x.bitness == bitness and self._IsInSpHalLinkPaths(x)
-        ]:
+        for obj in vendor_libs:
             if obj.name not in linkable_libs:
                 linkable_libs[obj.name] = obj
             else:
                 linkable_libs[obj.name] = min(
-                    linkable_libs[obj.name], obj, key=self._SpHalLinkOrder)
-        # find same-process HAL and dependencies
+                    linkable_libs[obj.name], obj,
+                    key=lambda x: sp_hal_link_paths.index(x.target_dir))
+        # Find same-process HAL and dependencies
         sp_hal_libs = set()
         for file_name, obj in linkable_libs.iteritems():
-            if any([x.match(file_name) for x in self._SAME_PROCESS_HAL]):
+            if any(x.match(file_name) for x in self._SAME_PROCESS_HAL):
                 self._DfsDependencies(obj, sp_hal_libs, linkable_libs)
-        logging.info("%d-bit SP HAL libraries: %s" %
-                     (bitness, ", ".join([x.name for x in sp_hal_libs])))
-        # check disallowed dependencies
+        return sp_hal_libs
+
+    def _FilterDisallowedDependencies(self, objs, is_allowed_dependency):
+        """Returns libraries with disallowed dependencies.
+
+        Args:
+            objs: A collection of ElfObject, the libraries/executables.
+            is_allowed_dependency: A function that takes the library name as the
+                                   argument and returns whether objs can depend
+                                   on the library.
+
+        Returns:
+            List of tuples (path, disallowed_dependencies). The library with
+            disallowed dependencies and list of the dependencies.
+        """
         dep_errors = []
-        for obj in sp_hal_libs:
+        for obj in objs:
             disallowed_libs = [
-                x for x in obj.deps
-                if not self._IsAllowedSpHalDependency(x, linkable_libs)
-            ]
+                x for x in obj.deps if not is_allowed_dependency(x)]
             if disallowed_libs:
                 dep_errors.append((obj.target_path, disallowed_libs))
         return dep_errors
 
+    def _TestVendorDependency(self, vendor_objs, vendor_libs):
+        """Tests if vendor libraries/executables have disallowed dependencies.
+
+        A vendor library/executable is allowed to depend on
+        - LL-NDK
+        - SP-NDK
+        - VNDK
+        - VNDK-SP
+        - VNDK-SP-Indirect
+        - Other libraries in vendor link paths, including SP-HAL.
+
+        Args:
+            vendor_objs: Collection of ElfObject, the libraries/executables on
+                         vendor partition.
+            vendor_libs: Set of ElfObject, the libraries in vendor link paths.
+
+        Returns:
+            List of tuples (path, disallowed_dependencies).
+        """
+        vendor_lib_names = set(x.name for x in vendor_libs)
+        is_allowed_dep = lambda x: (x in self._ll_ndk or
+                                    x in self._sp_ndk or
+                                    x in self._vndk or
+                                    x in self._vndk_sp or
+                                    x in self._vndk_sp_indirect or
+                                    x in vendor_lib_names)
+        return self._FilterDisallowedDependencies(vendor_objs, is_allowed_dep)
+
+    def _TestSpHalDependency(self, sp_hal_libs):
+        """Tests if SP-HAL libraries have disallowed dependencies.
+
+        A same-process HAL library is allowed to depend on
+        - LL-NDK
+        - SP-NDK
+        - VNDK-SP
+        - Other same-process HAL libraries and dependencies
+
+        Args:
+            sp_hal_libs: Set of ElfObject, the Same-process HAL libraries and
+                         the dependencies.
+
+        Returns:
+            List of tuples (path, disallowed_dependencies).
+        """
+        sp_hal_lib_names = set(x.name for x in sp_hal_libs)
+        is_allowed_dep = lambda x: (x in self._ll_ndk or
+                                    x in self._sp_ndk or
+                                    x in self._vndk_sp or
+                                    x in sp_hal_lib_names)
+        return self._FilterDisallowedDependencies(sp_hal_libs, is_allowed_dep)
+
+    def _TestElfDependency(self, bitness, objs):
+        """Tests vendor libraries/executables and SP-HAL dependencies.
+
+        Args:
+            bitness: 32 or 64, the bitness of the vendor libraries.
+            objs: List of ElfObject. The libraries/executables on vendor
+                  partition.
+
+        Returns:
+            List of tuples (path, disallowed_dependencies).
+        """
+        vndk_sp_ext_dir = self._GetVndkSpExtDir(bitness)
+        vendor_libs = self._FindVendorLibs(bitness, objs)
+        logging.info("%d-bit vendor libraries: %s",
+                     bitness, ", ".join([x.name for x in vendor_libs]))
+        sp_hal_libs = self._FindSpHalLibs(bitness, objs)
+        logging.info("%d-bit SP-HAL libraries: %s",
+                     bitness, ", ".join([x.name for x in sp_hal_libs]))
+        # Exclude VNDK-SP extension
+        # TODO(hsinyichen): check VNDK-SP extension dependencies
+        vendor_objs = {obj for obj in objs if
+                       obj.bitness == bitness and
+                       obj not in sp_hal_libs and
+                       obj.target_dir != vndk_sp_ext_dir}
+        dep_errors = self._TestVendorDependency(vendor_objs, vendor_libs)
+        dep_errors.extend(self._TestSpHalDependency(sp_hal_libs))
+        return dep_errors
+
     def testElfDependency(self):
-        """Scans library/executable dependency on vendor partition."""
+        """Tests vendor libraries/executables and SP-HAL dependencies."""
         read_errors = []
+        abi_list = self._dut.getCpuAbiList()
         objs = self._LoadElfObjects(
             self._temp_dir,
             path_utils.TargetDirName(self._TARGET_VENDOR_DIR),
+            abi_list,
             lambda p, e: read_errors.append((p, str(e))))
 
-        dep_errors = self._TestSpHalDependency(32, objs)
+        dep_errors = self._TestElfDependency(32, objs)
         if self._dut.is64Bit:
-            dep_errors.extend(self._TestSpHalDependency(64, objs))
-        # TODO(hsinyichen): check other vendor libraries
+            dep_errors.extend(self._TestElfDependency(64, objs))
 
         if read_errors:
-            logging.error("%d read errors:", len(read_errors))
-            for x in read_errors:
-                logging.error("%s: %s", x[0], x[1])
+            error_lines = ("%s: %s" % (x[0], x[1]) for x in read_errors)
+            logging.error("%d read errors:\n%s",
+                          len(read_errors), "\n".join(error_lines))
         if dep_errors:
-            logging.error("%d disallowed dependencies:", len(dep_errors))
-            for x in dep_errors:
-                logging.error("%s: %s", x[0], ", ".join(x[1]))
+            error_lines = ("%s: %s" % (x[0], ", ".join(x[1]))
+                           for x in dep_errors)
+            logging.error("%d disallowed dependencies:\n%s",
+                          len(dep_errors), "\n".join(error_lines))
         error_count = len(read_errors) + len(dep_errors)
         asserts.assertEqual(error_count, 0,
                             "Total number of errors: " + str(error_count))
