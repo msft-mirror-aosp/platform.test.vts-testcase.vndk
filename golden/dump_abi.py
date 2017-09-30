@@ -41,9 +41,9 @@ class ExternalModules(object):
         """
         sys.path.append(import_dir)
         cls.elf_parser = importlib.import_module(
-                "vts.utils.python.library.elf_parser")
+            "vts.utils.python.library.elf_parser")
         cls.vtable_parser = importlib.import_module(
-                "vts.utils.python.library.vtable_parser")
+            "vts.utils.python.library.vtable_parser")
 
 
 def GetBuildVariable(build_top_dir, var):
@@ -249,7 +249,8 @@ def main():
     if args.dumper_dir:
         dumper_dir = args.dumper_dir
     else:
-        dumper_path = FindBinary(vtable_parser.VtableParser.VNDK_VTABLE_DUMPER)
+        dumper_path = FindBinary(
+            ExternalModules.vtable_parser.VtableParser.VNDK_VTABLE_DUMPER)
         dumper_dir = os.path.dirname(os.path.dirname(dumper_path))
     print("DUMPER_DIR=" + dumper_dir)
 
