@@ -25,10 +25,30 @@ from vts.runners.host import base_test
 from vts.runners.host import const
 from vts.runners.host import keys
 from vts.runners.host import test_runner
-from vts.runners.host import utils
 from vts.utils.python.controllers import android_device
 from vts.utils.python.library import elf_parser
 from vts.utils.python.library import vtable_parser
+
+
+def _IterateFiles(root_dir):
+    """A generator yielding relative and full paths in a directory.
+
+    Args:
+        root_dir: The directory to search.
+
+    Yields:
+        A tuple of (relative_path, full_path) for each regular file.
+        relative_path is the relative path to root_dir. full_path is the path
+        starting with root_dir.
+    """
+    for dir_path, dir_names, file_names in os.walk(root_dir):
+        if dir_path == root_dir:
+            rel_dir = ""
+        else:
+            rel_dir = os.path.relpath(dir_path, root_dir)
+        for file_name in file_names:
+            yield (os.path.join(rel_dir, file_name),
+                   os.path.join(dir_path, file_name))
 
 
 class VtsVndkAbiTest(base_test.BaseTestClass):
@@ -37,43 +57,23 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
     Attributes:
         _dut: the AndroidDevice under test.
         _temp_dir: The temporary directory for libraries copied from device.
-        _vendor_lib: The directory to which /vendor/lib is copied.
-        _vendor_lib64: The directory to which /vendor/lib64 is copied.
-        _system_lib: The directory to which /system/lib is copied.
-        _system_lib64: The directory to which /system/lib64 is copied.
-        _sdk_version: String, the SDK version supported by the device.
+        _vndk_version: String, the VNDK version supported by the device.
         data_file_path: The path to VTS data directory.
     """
-    _TARGET_VENDOR_LIB = "/vendor/lib"
-    _TARGET_VENDOR_LIB64 = "/vendor/lib64"
-    _TARGET_SYSTEM_LIB = "/system/lib"
-    _TARGET_SYSTEM_LIB64 = "/system/lib64"
+    _VENDOR_LIB_DIR_32 = "/vendor/lib"
+    _VENDOR_LIB_DIR_64 = "/vendor/lib64"
+    _SYSTEM_LIB_DIR_32 = "/system/lib"
+    _SYSTEM_LIB_DIR_64 = "/system/lib64"
     _DUMP_DIR = os.path.join("vts", "testcases", "vndk", "golden")
 
     def setUpClass(self):
         """Initializes data file path, device, and temporary directory."""
         required_params = [keys.ConfigKeys.IKEY_DATA_FILE_PATH]
         self.getUserParams(required_params)
-
-        self._dut = self.registerController(android_device)[0]
+        self._dut = self.android_devices[0]
         self._temp_dir = tempfile.mkdtemp()
-        self._vendor_lib = os.path.join(self._temp_dir, "vendor_lib")
-        self._vendor_lib64 = os.path.join(self._temp_dir, "vendor_lib64")
-        self._system_lib = os.path.join(self._temp_dir, "system_lib")
-        self._system_lib64 = os.path.join(self._temp_dir, "system_lib64")
-        logging.info("host lib dir: %s %s %s %s",
-                     self._vendor_lib, self._vendor_lib64,
-                     self._system_lib, self._system_lib64)
-        self._PullOrCreateDir(self._TARGET_VENDOR_LIB, self._vendor_lib)
-        self._PullOrCreateDir(self._TARGET_SYSTEM_LIB, self._system_lib)
-        if self._dut.is64Bit:
-            self._PullOrCreateDir(self._TARGET_VENDOR_LIB64, self._vendor_lib64)
-            self._PullOrCreateDir(self._TARGET_SYSTEM_LIB64, self._system_lib64)
-
-        cmd = "getprop ro.build.version.sdk"
-        logging.info("adb shell %s", cmd)
-        self._sdk_version = self._dut.adb.shell(cmd).rstrip()
-        logging.info("sdk version: %s", self._sdk_version)
+        self._vndk_version = "current"
+        logging.info("VNDK version: %s", self._vndk_version)
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
@@ -95,8 +95,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             os.mkdir(host_dir, 0750)
             return
         logging.info("adb pull %s %s", target_dir, host_dir)
-        pull_output = self._dut.adb.pull(target_dir, host_dir)
-        logging.debug(pull_output)
+        self._dut.adb.pull(target_dir, host_dir)
 
     def _DiffSymbols(self, dump_path, lib_path):
         """Checks if a library includes all symbols in a dump.
@@ -118,10 +117,9 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                                if line.strip())
         parser = elf_parser.ElfParser(lib_path)
         try:
-            lib_symbols = parser.ListGlobalDynamicSymbols()
+            lib_symbols = parser.ListGlobalDynamicSymbols(include_weak=True)
         finally:
             parser.Close()
-        logging.debug("%s: %s", lib_path, lib_symbols)
         return sorted(dump_symbols.difference(lib_symbols))
 
     def _DiffVtables(self, dump_path, lib_path):
@@ -140,7 +138,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             vtable_parser.VtableError if fails to load the library.
         """
         parser = vtable_parser.VtableParser(
-                os.path.join(self.data_file_path, "host"))
+            os.path.join(self.data_file_path, "host"))
         with open(dump_path, "r") as dump_file:
             dump_vtables = parser.ParseVtablesFromString(dump_file.read())
 
@@ -177,23 +175,22 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         symbol_dumps = dict()
         vtable_dumps = dict()
         lib_paths = dict()
-        for root_dir, file_name in utils.iterate_files(dump_dir):
-            dump_path = os.path.join(root_dir, file_name)
-            if file_name.endswith("_symbol.dump"):
-                lib_name = file_name.rpartition("_symbol.dump")[0]
+        for dump_rel_path, dump_path in _IterateFiles(dump_dir):
+            if dump_rel_path.endswith("_symbol.dump"):
+                lib_name = dump_rel_path.rpartition("_symbol.dump")[0]
                 symbol_dumps[lib_name] = dump_path
-            elif file_name.endswith("_vtable.dump"):
-                lib_name = file_name.rpartition("_vtable.dump")[0]
+            elif dump_rel_path.endswith("_vtable.dump"):
+                lib_name = dump_rel_path.rpartition("_vtable.dump")[0]
                 vtable_dumps[lib_name] = dump_path
             else:
-                logging.warning("Unknown dump: " + dump_path)
+                logging.warning("Unknown dump: %s", dump_path)
                 continue
             lib_paths[lib_name] = None
 
         for lib_dir in lib_dirs:
-            for root_dir, lib_name in utils.iterate_files(lib_dir):
+            for lib_name, lib_path in _IterateFiles(lib_dir):
                 if lib_name in lib_paths and not lib_paths[lib_name]:
-                    lib_paths[lib_name] = os.path.join(root_dir, lib_name)
+                    lib_paths[lib_name] = lib_path
 
         for lib_name, lib_path in lib_paths.iteritems():
             if not lib_path:
@@ -208,7 +205,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             if lib_name in symbol_dumps:
                 try:
                     missing_symbols = self._DiffSymbols(
-                            symbol_dumps[lib_name], lib_path)
+                        symbol_dumps[lib_name], lib_path)
                 except (IOError, elf_parser.ElfError):
                     logging.exception("%s: Cannot diff symbols", rel_path)
                     has_exception = True
@@ -216,7 +213,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             if lib_name in vtable_dumps:
                 try:
                     vtable_diff = self._DiffVtables(
-                            vtable_dumps[lib_name], lib_path)
+                        vtable_dumps[lib_name], lib_path)
                 except (IOError, vtable_parser.VtableError):
                     logging.exception("%s: Cannot diff vtables", rel_path)
                     has_exception = True
@@ -229,39 +226,42 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                               "vtable symbol expected actual\n%s",
                               rel_path,
                               "\n".join(" ".join(x) for x in vtable_diff))
-            if  has_exception or missing_symbols or vtable_diff:
+            if has_exception or missing_symbols or vtable_diff:
                 error_count += 1
             else:
                 logging.info("%s: Pass", rel_path)
         return error_count
 
     def testAbiCompatibility(self):
-        """Checks ABI compliance of vendor-available libraries."""
-        abi = self._dut.cpu_abi
-        if abi.startswith("arm"):
-            abi_32, abi_64 = "arm", "arm64"
-        elif abi.startswith("x86"):
-            abi_32, abi_64 = "x86", "x86_64"
-        elif abi.startswith("mips"):
-            abi_32, abi_64 = "mips", "mips64"
-        else:
-            asserts.fail("Unknown ABI " + abi)
-        dump_dir_32 = os.path.join(self._DUMP_DIR, self._sdk_version, abi_32)
-        dump_dir_64 = os.path.join(self._DUMP_DIR, self._sdk_version, abi_64)
+        """Checks ABI compliance of VNDK libraries."""
+        abi_dirs = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
+        try:
+            abi_dir = next(x for x in abi_dirs if self.abi_name.startswith(x))
+        except StopIteration:
+            asserts.fail("Unknown ABI: " + self.abi_name)
 
-        logging.info("Check 32-bit libraries")
-        asserts.assertTrue(os.path.isdir(dump_dir_32),
-                "No dump files for SDK version " + self._sdk_version)
-        error_count = self._ScanLibDirs(dump_dir_32, [self._vendor_lib,
-                                                      self._system_lib])
-        if self._dut.is64Bit:
-            logging.info("Check 64-bit libraries")
-            asserts.assertTrue(os.path.isdir(dump_dir_64),
-                    "No dump files for SDK version " + self._sdk_version)
-            error_count += self._ScanLibDirs(dump_dir_64, [self._vendor_lib64,
-                                                           self._system_lib64])
+        dump_dir = os.path.join(
+            self.data_file_path, self._DUMP_DIR, self._vndk_version, abi_dir)
+        asserts.assertTrue(
+            os.path.isdir(dump_dir),
+            "No dump files for VNDK version " + self._vndk_version)
+
+        vendor_lib_dir = os.path.join(
+            self._temp_dir, "vendor_lib_dir_" + self.abi_bitness)
+        system_lib_dir = os.path.join(
+            self._temp_dir, "system_lib_dir_" + self.abi_bitness)
+        logging.info("host lib dir: %s %s", vendor_lib_dir, system_lib_dir)
+        self._PullOrCreateDir(
+            getattr(self, "_VENDOR_LIB_DIR_" + self.abi_bitness),
+            vendor_lib_dir)
+        self._PullOrCreateDir(
+            getattr(self, "_SYSTEM_LIB_DIR_" + self.abi_bitness),
+            system_lib_dir)
+
+        error_count = self._ScanLibDirs(
+            dump_dir, [vendor_lib_dir, system_lib_dir])
         asserts.assertEqual(error_count, 0,
-                "Total number of errors: " + str(error_count))
+                            "Total number of errors: " + str(error_count))
 
 
 if __name__ == "__main__":
