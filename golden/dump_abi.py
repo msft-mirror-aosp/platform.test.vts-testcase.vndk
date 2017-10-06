@@ -46,6 +46,41 @@ class ExternalModules(object):
             "vts.utils.python.library.vtable_parser")
 
 
+def _CreateAndWrite(path, data):
+    """Creates directories on a file path and writes data to it.
+
+    Args:
+        path: The path to the file.
+        data: The data to write.
+    """
+    dir_name = os.path.dirname(path)
+    if dir_name and not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+    with open(path, "w") as f:
+        f.write(data)
+
+
+def _ExecuteCommand(cmd, **kwargs):
+    """Executes a command and returns stdout.
+
+    Args:
+        cmd: A list of strings, the command to execute.
+        **kwargs: The arguments passed to subprocess.Popen.
+
+    Returns:
+        A string, the stdout.
+    """
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    stdout, stderr = proc.communicate()
+    if proc.returncode:
+        sys.exit("Command failed: %s\nstdout=%s\nstderr=%s" % (
+                 cmd, stdout, stderr))
+    if stderr:
+        print("Warning: cmd=%s\nstdout=%s\nstderr=%s" % (cmd, stdout, stderr))
+    return stdout.strip()
+
+
 def GetBuildVariable(build_top_dir, var):
     """Gets value of a variable from build config.
 
@@ -63,13 +98,7 @@ def GetBuildVariable(build_top_dir, var):
     cmd = ["make", "--no-print-directory",
            "-f", os.path.join(build_core, "config.mk"),
            "dumpvar-" + var]
-    proc = subprocess.Popen(cmd, env=env, cwd=build_top_dir,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
-    if stderr:
-        sys.exit("Cannot get variable: cmd=%s\nstdout=%s\nstderr=%s" % (
-                 cmd, stdout, stderr))
-    return stdout.strip()
+    return _ExecuteCommand(cmd, env=env, cwd=build_top_dir)
 
 
 def FindBinary(file_name):
@@ -81,13 +110,7 @@ def FindBinary(file_name):
     Returns:
         A string which is the path to the binary.
     """
-    cmd = ["which", file_name]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
-    if proc.returncode:
-        sys.exit("Cannot find file: cmd=%s\nstdout=%s\nstderr=%s" % (
-                 cmd, stdout, stderr))
-    return stdout
+    return _ExecuteCommand(["which", file_name])
 
 
 def DumpSymbols(lib_path, dump_path):
@@ -100,7 +123,7 @@ def DumpSymbols(lib_path, dump_path):
         dump_path: The path to the dump file.
 
     Returns:
-        A string which is the description about the result.
+        A list of strings which are the symbols written to the dump file.
 
     Raises:
         elf_parser.ElfError if fails to load the library.
@@ -114,15 +137,13 @@ def DumpSymbols(lib_path, dump_path):
     finally:
         if parser:
             parser.Close()
-    if not symbols:
-        return "No symbols"
-    symbols.sort()
-    with open(dump_path, "w") as dump_file:
-        dump_file.write("\n".join(symbols) + "\n")
-    return "Output: " + dump_path
+    if symbols:
+        symbols.sort()
+        _CreateAndWrite(dump_path, "\n".join(symbols) + "\n")
+    return symbols
 
 
-def DumpVtables(lib_path, dump_path, dumper_dir):
+def DumpVtables(lib_path, dump_path, dumper_dir, include_symbols):
     """Dump vtables from a library to a dump file.
 
     The dump file is the raw output of vndk-vtable-dumper.
@@ -132,9 +153,11 @@ def DumpVtables(lib_path, dump_path, dumper_dir):
         dump_path: The path to the text file.
         dumper_dir: The path to the directory containing the dumper executable
                     and library.
+        include_symbols: A set of strings. A vtable is written to the dump file
+                         only if its symbol is in the set.
 
     Returns:
-        A string which is the description about the result.
+        A string which is the content written to the dump file.
 
     Raises:
         vtable_parser.VtableError if fails to load the library.
@@ -142,12 +165,28 @@ def DumpVtables(lib_path, dump_path, dumper_dir):
     """
     vtable_parser = ExternalModules.vtable_parser
     parser = vtable_parser.VtableParser(dumper_dir)
-    vtables = parser.CallVtableDumper(lib_path)
-    if not vtables:
-        return "No vtables"
-    with open(dump_path, "w+") as dump_file:
-        dump_file.write(vtables)
-    return "Output: " + dump_path
+
+    def GenerateLines():
+        for line in parser.CallVtableDumper(lib_path).split("\n"):
+            parsed_lines.append(line)
+            yield line
+
+    lines = GenerateLines()
+    dump_lines = []
+    try:
+        while True:
+            parsed_lines = []
+            vtable, entries = parser.ParseOneVtable(lines)
+            if vtable in include_symbols:
+                dump_lines.extend(parsed_lines)
+    except StopIteration:
+        pass
+
+    dump_string = "\n".join(dump_lines).strip("\n")
+    if dump_string:
+        dump_string += "\n"
+        _CreateAndWrite(dump_path, dump_string)
+    return dump_string
 
 
 def GetSystemLibDirByArch(product_dir, arch_name):
@@ -195,15 +234,22 @@ def DumpAbi(output_dir, input_files, product_dir, archs, dumper_dir):
     for arch in archs:
         lib_dir = GetSystemLibDirByArch(product_dir, arch)
         dump_dir = os.path.join(output_dir, arch)
-        if not os.path.exists(dump_dir):
-            os.makedirs(dump_dir)
         for lib_name in lib_names:
             lib_path = os.path.join(lib_dir, lib_name)
             symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
             vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
             print(lib_path)
-            print(DumpSymbols(lib_path, symbol_dump_path))
-            print(DumpVtables(lib_path, vtable_dump_path, dumper_dir))
+            symbols = DumpSymbols(lib_path, symbol_dump_path)
+            if symbols:
+                print("Output: " + symbol_dump_path)
+            else:
+                print("No symbols")
+            vtables = DumpVtables(
+                lib_path, vtable_dump_path, dumper_dir, set(symbols))
+            if vtables:
+                print("Output: " + vtable_dump_path)
+            else:
+                print("No vtables")
             print("")
 
 
