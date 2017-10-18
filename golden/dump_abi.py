@@ -91,14 +91,8 @@ def GetBuildVariable(build_top_dir, var):
     Returns:
         A string which is the value of the variable.
     """
-    build_core = os.path.join(build_top_dir, "build", "core")
-    env = dict(os.environ)
-    env["CALLED_FROM_SETUP"] = "true"
-    env["BUILD_SYSTEM"] = build_core
-    cmd = ["make", "--no-print-directory",
-           "-f", os.path.join(build_core, "config.mk"),
-           "dumpvar-" + var]
-    return _ExecuteCommand(cmd, env=env, cwd=build_top_dir)
+    cmd = ["build/soong/soong_ui.bash", "--dumpvar-mode", var]
+    return _ExecuteCommand(cmd, cwd=build_top_dir)
 
 
 def FindBinary(file_name):
