@@ -16,12 +16,9 @@
 
 LOCAL_PATH := $(call my-dir)
 
-include $(call all-subdir-makefiles)
-
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := VtsVndkAbi
-
 VTS_CONFIG_SRC_DIR := testcases/vndk/abi
 include test/vts/tools/build/Android.host_config.mk
 
