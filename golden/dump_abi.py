@@ -29,6 +29,7 @@ class ExternalModules(object):
     are outside the search path and thus have to be imported dynamically.
 
     Attribtues:
+        ar_parser: The ar_parser module.
         elf_parser: The elf_parser module.
         vtable_parser: The vtable_parser module.
     """
@@ -40,6 +41,8 @@ class ExternalModules(object):
             import_dir: The directory containing vts.utils.python.library.*.
         """
         sys.path.append(import_dir)
+        cls.ar_parser = importlib.import_module(
+            "vts.utils.python.library.ar_parser")
         cls.elf_parser = importlib.import_module(
             "vts.utils.python.library.elf_parser")
         cls.vtable_parser = importlib.import_module(
@@ -107,7 +110,7 @@ def FindBinary(file_name):
     return _ExecuteCommand(["which", file_name])
 
 
-def DumpSymbols(lib_path, dump_path):
+def DumpSymbols(lib_path, dump_path, exclude_symbols):
     """Dump symbols from a library to a dump file.
 
     The dump file is a sorted list of symbols. Each line contains one symbol.
@@ -115,6 +118,8 @@ def DumpSymbols(lib_path, dump_path):
     Args:
         lib_path: The path to the library.
         dump_path: The path to the dump file.
+        exclude_symbols: A set of strings, the symbols that should not be
+                         written to the dump file.
 
     Returns:
         A list of strings which are the symbols written to the dump file.
@@ -127,7 +132,8 @@ def DumpSymbols(lib_path, dump_path):
     parser = None
     try:
         parser = elf_parser.ElfParser(lib_path)
-        symbols = parser.ListGlobalDynamicSymbols()
+        symbols = [x for x in parser.ListGlobalDynamicSymbols()
+                   if x not in exclude_symbols]
     finally:
         if parser:
             parser.Close()
@@ -202,49 +208,69 @@ def GetSystemLibDirByArch(product_dir, arch_name):
     return src_dir
 
 
-def DumpAbi(output_dir, input_files, product_dir, archs, dumper_dir):
+def _LoadLibraryNames(file_names):
+    """Loads library names from files.
+
+    Each element in the input list can be a .so file or a text file which
+    contains list of library names. The returned list consists of the .so file
+    names in the input list, and the non-empty lines in the text files.
+
+    Args:
+        file_names: A list of strings, the library or text file names.
+
+    Returns:
+        A list of strings, the library names.
+    """
+    lib_names = []
+    for file_name in file_names:
+        if file_name.endswith(".so"):
+            lib_names.append(file_name)
+        else:
+            with open(file_name, "r") as lib_list:
+                lib_names.extend(line.strip() for line in lib_list
+                                 if line.strip())
+    return lib_names
+
+
+def DumpAbi(output_dir, lib_names, product_dir, object_dir, arch, dumper_dir):
     """Generates dump from libraries.
 
     Args:
         output_dir: The output directory of dump files.
-        input_files: A list of strings. Each element can be .so file or a text
-                     file which contains list of libraries.
+        lib_names: The names of the libraries to dump.
         product_dir: The path to the product output directory in Android source.
-        archs: A list of strings which are the CPU architectures of the
-               libraries.
+        object_dir: The path to directory containing intermediate objects.
+        arch: A string representing the CPU architecture of the libraries.
         dumper_dir: The path to the directory containing the vtable dumper
                     executable and library.
     """
-    # Get names of the libraries to dump
-    lib_names = []
-    for input_file in input_files:
-        if input_file.endswith(".so"):
-            lib_names.append(input_file)
+    ar_parser = ExternalModules.ar_parser
+    static_symbols = set()
+    for ar_name in ("libgcc", "libatomic", "libcompiler_rt-extras"):
+        ar_path = os.path.join(
+            object_dir, "STATIC_LIBRARIES", ar_name + "_intermediates",
+            ar_name + ".a")
+        static_symbols.update(ar_parser.ListGlobalSymbols(ar_path))
+
+    lib_dir = GetSystemLibDirByArch(product_dir, arch)
+    dump_dir = os.path.join(output_dir, arch)
+    for lib_name in lib_names:
+        lib_path = os.path.join(lib_dir, lib_name)
+        symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
+        vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
+        print(lib_path)
+        symbols = DumpSymbols(lib_path, symbol_dump_path, static_symbols)
+        if symbols:
+            print("Output: " + symbol_dump_path)
         else:
-            with open(input_file, "r") as lib_list:
-                lib_names.extend(line.strip() for line in lib_list
-                                 if line.strip())
-    # Create the dumps
-    for arch in archs:
-        lib_dir = GetSystemLibDirByArch(product_dir, arch)
-        dump_dir = os.path.join(output_dir, arch)
-        for lib_name in lib_names:
-            lib_path = os.path.join(lib_dir, lib_name)
-            symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
-            vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
-            print(lib_path)
-            symbols = DumpSymbols(lib_path, symbol_dump_path)
-            if symbols:
-                print("Output: " + symbol_dump_path)
-            else:
-                print("No symbols")
-            vtables = DumpVtables(
-                lib_path, vtable_dump_path, dumper_dir, set(symbols))
-            if vtables:
-                print("Output: " + vtable_dump_path)
-            else:
-                print("No vtables")
-            print("")
+            print("No symbols")
+        vtables = DumpVtables(
+            lib_path, vtable_dump_path, dumper_dir, set(symbols))
+        if vtables:
+            print("Output: " + vtable_dump_path)
+        else:
+            print("No vtables")
+        print("")
 
 
 def main():
@@ -274,12 +300,16 @@ def main():
     if not build_top_dir:
         sys.exit("env var ANDROID_BUILD_TOP is not set")
     target_arch = GetBuildVariable(build_top_dir, "TARGET_ARCH")
+    target_obj_dir = GetBuildVariable(build_top_dir, "TARGET_OUT_INTERMEDIATES")
     target_2nd_arch = GetBuildVariable(build_top_dir, "TARGET_2ND_ARCH")
+    target_2nd_obj_dir = GetBuildVariable(build_top_dir,
+                                          "2ND_TARGET_OUT_INTERMEDIATES")
     print("TARGET_ARCH=" + target_arch)
+    print("TARGET_OUT_INTERMEDIATES=" + target_obj_dir)
     print("TARGET_2ND_ARCH=" + target_2nd_arch)
-    archs = [target_arch]
-    if target_2nd_arch:
-        archs.append(target_2nd_arch)
+    print("2ND_TARGET_OUT_INTERMEDIATES=" + target_2nd_obj_dir)
+    target_obj_dir = os.path.join(build_top_dir, target_obj_dir)
+    target_2nd_obj_dir = os.path.join(build_top_dir, target_2nd_obj_dir)
 
     # Import elf_parser and vtable_parser
     ExternalModules.ImportParsers(args.import_path if args.import_path else
@@ -294,7 +324,12 @@ def main():
         dumper_dir = os.path.dirname(os.path.dirname(dumper_path))
     print("DUMPER_DIR=" + dumper_dir)
 
-    DumpAbi(args.output, args.file, product_dir, archs, dumper_dir)
+    lib_names = _LoadLibraryNames(args.file)
+    DumpAbi(args.output, lib_names, product_dir, target_obj_dir, target_arch,
+            dumper_dir)
+    if target_2nd_arch:
+        DumpAbi(args.output, lib_names, product_dir, target_2nd_obj_dir,
+                target_2nd_arch, dumper_dir)
 
 
 if __name__ == "__main__":
