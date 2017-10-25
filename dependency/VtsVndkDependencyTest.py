@@ -369,12 +369,18 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         logging.info("%d-bit SP-HAL libraries: %s",
                      bitness, ", ".join([x.name for x in sp_hal_libs]))
         # Exclude VNDK-SP extension
-        # TODO(hsinyichen): check VNDK-SP extension dependencies
+        # TODO(hsinyichen): b/68113025 check VNDK-SP extension dependencies
         vendor_objs = {obj for obj in objs if
                        obj.bitness == bitness and
                        obj not in sp_hal_libs and
                        obj.target_dir != vndk_sp_ext_dir}
         dep_errors = self._TestVendorDependency(vendor_objs, vendor_libs)
+        # TODO(hsinyichen): b/68113025 enable when VNDK runtime restriction
+        #                   is enforced
+        if not target_file_utils.IsDirectory("/system/lib/vndk",
+                                             self._dut.shell):
+            logging.warning("Ignore dependency errors: %s", dep_errors)
+            dep_errors = []
         dep_errors.extend(self._TestSpHalDependency(sp_hal_libs))
         return dep_errors
 
