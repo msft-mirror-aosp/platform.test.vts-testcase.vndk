@@ -31,6 +31,7 @@ from vts.utils.python.controllers import android_device
 from vts.utils.python.file import target_file_utils
 from vts.utils.python.library import elf_parser
 from vts.utils.python.os import path_utils
+from vts.utils.python.vndk import vndk_utils
 
 
 class VtsVndkDependencyTest(base_test.BaseTestClass):
@@ -44,13 +45,13 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         _ll_ndk: Set of strings. The names of low-level NDK libraries in
                  /system/lib[64].
         _sp_ndk: Set of strings. The names of same-process NDK libraries in
-                 /system/lib[64]/vndk.
+                 /system/lib[64]/vndk-${VER}.
         _vndk: Set of strings. The names of VNDK core libraries in
-               /system/lib[64]/vndk.
+               /system/lib[64]/vndk-${VER}.
         _vndk_sp: Set of strings. The names of VNDK-SP libraries in
-                  /system/lib[64]/vndk-sp.
+                  /system/lib[64]/vndk-sp-${VER}.
         _vndk_sp_indirect: Set of strings. The names of VNDK-SP-Indirect
-                           libraries in /system/lib[64]/vndk-sp
+                           libraries in /system/lib[64]/vndk-sp-${VER}.
         _SAME_PROCESS_HAL: List of patterns. The names of same-process HAL
                            libraries expected to be in /vendor/lib[64].
         _SP_HAL_LINK_PATHS_32: 32-bit same-process HAL's link paths in
@@ -63,8 +64,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                                /vendor/lib64.
     """
     _TARGET_VENDOR_DIR = "/vendor"
-    _TARGET_VNDK_SP_EXT_DIR_32 = "/vendor/lib/vndk-sp"
-    _TARGET_VNDK_SP_EXT_DIR_64 = "/vendor/lib64/vndk-sp"
 
     # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _SAME_PROCESS_HAL = [
@@ -119,7 +118,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                                          self._temp_dir)
         logging.debug(pull_output)
         vndk_lists = vndk_data.LoadVndkLibraryLists(
-            self.data_file_path, "current",
+            self.data_file_path,
+            self._dut.vndk_version,
             vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK,
             vndk_data.VNDK_SP, vndk_data.VNDK_SP_INDIRECT)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
@@ -201,17 +201,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
            A list of strings, the same-process HAL link paths.
         """
         return getattr(self, "_SP_HAL_LINK_PATHS_" + str(bitness))
-
-    def _GetVndkSpExtDir(self, bitness):
-        """Returns 32/64-bit VNDK-SP extension directory on target device.
-
-        Args:
-            bitness: 32 or 64, the bitness of VNDK-SP extension.
-
-        Returns:
-            A string, the path to VNDK-SP extension directory.
-        """
-        return getattr(self, "_TARGET_VNDK_SP_EXT_DIR_" + str(bitness))
 
     def _DfsDependencies(self, lib, searched, searchable):
         """Depth-first-search for library dependencies.
@@ -361,7 +350,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         Returns:
             List of tuples (path, disallowed_dependencies).
         """
-        vndk_sp_ext_dir = self._GetVndkSpExtDir(bitness)
+        vndk_sp_ext_dir = vndk_utils.GetVndkSpExtDirectory(bitness)
         vendor_libs = self._FindVendorLibs(bitness, objs)
         logging.info("%d-bit vendor libraries: %s",
                      bitness, ", ".join([x.name for x in vendor_libs]))
@@ -375,12 +364,11 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                        obj not in sp_hal_libs and
                        obj.target_dir != vndk_sp_ext_dir}
         dep_errors = self._TestVendorDependency(vendor_objs, vendor_libs)
-        # TODO(hsinyichen): b/68113025 enable when VNDK runtime restriction
-        #                   is enforced
-        if not target_file_utils.IsDirectory("/system/lib/vndk",
-                                             self._dut.shell):
+
+        if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.warning("Ignore dependency errors: %s", dep_errors)
             dep_errors = []
+
         dep_errors.extend(self._TestSpHalDependency(sp_hal_libs))
         return dep_errors
 

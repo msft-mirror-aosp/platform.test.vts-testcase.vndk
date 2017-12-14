@@ -25,6 +25,7 @@ from vts.runners.host import base_test
 from vts.runners.host import const
 from vts.runners.host import keys
 from vts.runners.host import test_runner
+from vts.testcases.vndk.golden import vndk_data
 from vts.utils.python.controllers import android_device
 from vts.utils.python.library import elf_parser
 from vts.utils.python.library import vtable_parser
@@ -64,7 +65,6 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
     _VENDOR_LIB_DIR_64 = "/vendor/lib64"
     _SYSTEM_LIB_DIR_32 = "/system/lib"
     _SYSTEM_LIB_DIR_64 = "/system/lib64"
-    _DUMP_DIR = os.path.join("vts", "testcases", "vndk", "golden")
 
     def setUpClass(self):
         """Initializes data file path, device, and temporary directory."""
@@ -72,8 +72,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         self.getUserParams(required_params)
         self._dut = self.android_devices[0]
         self._temp_dir = tempfile.mkdtemp()
-        self._vndk_version = "current"
-        logging.info("VNDK version: %s", self._vndk_version)
+        self._vndk_version = self._dut.vndk_version
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
@@ -234,17 +233,13 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
 
     def testAbiCompatibility(self):
         """Checks ABI compliance of VNDK libraries."""
-        abi_dirs = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
-        try:
-            abi_dir = next(x for x in abi_dirs if self.abi_name.startswith(x))
-        except StopIteration:
-            asserts.fail("Unknown ABI: " + self.abi_name)
-
-        dump_dir = os.path.join(
-            self.data_file_path, self._DUMP_DIR, self._vndk_version, abi_dir)
+        dump_dir = vndk_data.GetAbiDumpDirectory(
+            self.data_file_path, self._vndk_version, self.abi_name)
         asserts.assertTrue(
-            os.path.isdir(dump_dir),
-            "No dump files for VNDK version " + self._vndk_version)
+            dump_dir,
+            "No dump files. version: %s ABI: %s" % (self._vndk_version,
+                                                    self.abi_name))
+        logging.info("dump dir: %s", dump_dir)
 
         vendor_lib_dir = os.path.join(
             self._temp_dir, "vendor_lib_dir_" + self.abi_bitness)

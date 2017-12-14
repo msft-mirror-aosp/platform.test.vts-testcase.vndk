@@ -23,6 +23,7 @@ from vts.runners.host import keys
 from vts.runners.host import test_runner
 from vts.testcases.vndk.golden import vndk_data
 from vts.utils.python.file import target_file_utils
+from vts.utils.python.vndk import vndk_utils
 
 
 class VtsVndkFilesTest(base_test.BaseTestClass):
@@ -30,18 +31,18 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
 
     Attributes:
         data_file_path: The path to VTS data directory.
+        _dut: The AndroidDevice under test.
         _shell: The ShellMirrorObject that executes commands.
+        _vndk_version: The VNDK version of the device.
     """
-    _SYSTEM_VNDK_DIR_32 = "/system/lib/vndk"
-    _SYSTEM_VNDK_DIR_64 = "/system/lib64/vndk"
-    _SYSTEM_VNDK_SP_DIR_32 = "/system/lib/vndk-sp"
-    _SYSTEM_VNDK_SP_DIR_64 = "/system/lib64/vndk-sp"
 
     def setUpClass(self):
         """Initializes the data file path and shell."""
         required_params = [keys.ConfigKeys.IKEY_DATA_FILE_PATH]
         self.getUserParams(required_params)
-        self._shell = self.android_devices[0].shell
+        self._dut = self.android_devices[0]
+        self._shell = self._dut.shell
+        self._vndk_version = self._dut.vndk_version
 
     def _ListFiles(self, dir_path):
         """Lists all files in a directory except subdirectories.
@@ -64,7 +65,7 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
                               that can be in the directory.
         """
         vndk_lists = vndk_data.LoadVndkLibraryLists(
-            self.data_file_path, "current", *vndk_list_names)
+            self.data_file_path, self._vndk_version, *vndk_list_names)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
         vndk_set = set().union(*vndk_lists)
         logging.debug("vndk set: %s", vndk_set)
@@ -74,15 +75,19 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
             asserts.fail("Total number of errors: %d" % len(unexpected))
 
     def testVndkCoreDirectory(self):
-        """Verifies that VNDK core directory doesn't contain extra files."""
+        """Verifies that VNDK-core directory doesn't contain extra files."""
+        asserts.skipIf(not vndk_utils.IsVndkRuntimeEnforced(self._dut),
+                       "VNDK runtime is not enforced on the device.")
         self._TestVndkDirectory(
-            getattr(self, "_SYSTEM_VNDK_DIR_" + self.abi_bitness),
+            vndk_utils.GetVndkCoreDirectory(
+                self.abi_bitness, self._vndk_version),
             vndk_data.VNDK)
 
     def testVndkSpDirecotry(self):
         """Verifies that VNDK-SP directory doesn't contain extra files."""
         self._TestVndkDirectory(
-            getattr(self, "_SYSTEM_VNDK_SP_DIR_" + self.abi_bitness),
+            vndk_utils.GetVndkSpDirectory(
+                self.abi_bitness, self._vndk_version),
             vndk_data.VNDK_SP,
             vndk_data.VNDK_SP_INDIRECT,
             vndk_data.VNDK_SP_INDIRECT_PRIVATE)
