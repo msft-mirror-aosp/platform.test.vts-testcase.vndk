@@ -23,6 +23,7 @@ from vts.runners.host import const
 from vts.runners.host import keys
 from vts.runners.host import test_runner
 from vts.testcases.vndk.golden import vndk_data
+from vts.utils.python.vndk import vndk_utils
 
 
 class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
@@ -97,17 +98,19 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
 
     def testVendorProcessOpenLibraries(self):
         """Checks if vendor processes load shared libraries on system."""
+        asserts.skipIf(not vndk_utils.IsVndkRuntimeEnforced(self._dut),
+                       "VNDK runtime is not enforced on the device.")
         vndk_lists = vndk_data.LoadVndkLibraryLists(
-                self.data_file_path,
-                "current",
-                vndk_data.LL_NDK,
-                vndk_data.LL_NDK_INDIRECT,
-                vndk_data.SP_NDK,
-                vndk_data.SP_NDK_INDIRECT,
-                vndk_data.VNDK,
-                vndk_data.VNDK_SP,
-                vndk_data.VNDK_SP_INDIRECT,
-                vndk_data.VNDK_SP_INDIRECT_PRIVATE)
+            self.data_file_path,
+            self._dut.vndk_version,
+            vndk_data.LL_NDK,
+            vndk_data.LL_NDK_INDIRECT,
+            vndk_data.SP_NDK,
+            vndk_data.SP_NDK_INDIRECT,
+            vndk_data.VNDK,
+            vndk_data.VNDK_SP,
+            vndk_data.VNDK_SP_INDIRECT,
+            vndk_data.VNDK_SP_INDIRECT_PRIVATE)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
         allowed_libs = set()
         for vndk_list in vndk_lists:
