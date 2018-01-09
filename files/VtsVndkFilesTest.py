@@ -83,7 +83,7 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
                 self.abi_bitness, self._vndk_version),
             vndk_data.VNDK)
 
-    def testVndkSpDirecotry(self):
+    def testVndkSpDirectory(self):
         """Verifies that VNDK-SP directory doesn't contain extra files."""
         self._TestVndkDirectory(
             vndk_utils.GetVndkSpDirectory(
