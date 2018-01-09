@@ -160,12 +160,16 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                                  ",".join(str(x) for x in lib_inv_vtable[sym])))
         return diff
 
-    def _ScanLibDirs(self, dump_dir, lib_dirs):
+    def _ScanLibDirs(self, dump_dir, lib_dirs, dump_version):
         """Compares dump files with libraries copied from device.
 
         Args:
             dump_dir: The directory containing dump files.
             lib_dirs: The list of directories containing libraries.
+            dump_version: The VNDK version of the dump files. If the device has
+                          no VNDK version or has extension in vendor partition,
+                          this method compares the unversioned VNDK directories
+                          with the dump directories of the given version.
 
         Returns:
             An integer, number of incompatible libraries.
@@ -187,7 +191,15 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             lib_paths[lib_name] = None
 
         for lib_dir in lib_dirs:
-            for lib_name, lib_path in _IterateFiles(lib_dir):
+            for lib_rel_path, lib_path in _IterateFiles(lib_dir):
+                try:
+                    vndk_dir = next(x for x in ("vndk", "vndk-sp") if
+                                    lib_rel_path.startswith(x + os.path.sep))
+                    lib_name = lib_rel_path.replace(
+                        vndk_dir, vndk_dir + "-" + dump_version, 1)
+                except StopIteration:
+                    lib_name = lib_rel_path
+
                 if lib_name in lib_paths and not lib_paths[lib_name]:
                     lib_paths[lib_name] = lib_path
 
@@ -233,12 +245,18 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
 
     def testAbiCompatibility(self):
         """Checks ABI compliance of VNDK libraries."""
+        primary_abi = self._dut.getCpuAbiList()[0]
+        dump_version = (self._vndk_version if self._vndk_version else
+                        vndk_data.DEFAULT_VNDK_VERSION)
         dump_dir = vndk_data.GetAbiDumpDirectory(
-            self.data_file_path, self._vndk_version, self.abi_name)
+            self.data_file_path,
+            self._vndk_version,
+            primary_abi,
+            self.abi_bitness)
         asserts.assertTrue(
             dump_dir,
-            "No dump files. version: %s ABI: %s" % (self._vndk_version,
-                                                    self.abi_name))
+            "No dump files. version: %s ABI: %s bitness: %s" % (
+                self._vndk_version, primary_abi, self.abi_bitness))
         logging.info("dump dir: %s", dump_dir)
 
         vendor_lib_dir = os.path.join(
@@ -254,7 +272,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             system_lib_dir)
 
         error_count = self._ScanLibDirs(
-            dump_dir, [vendor_lib_dir, system_lib_dir])
+            dump_dir, [vendor_lib_dir, system_lib_dir], dump_version)
         asserts.assertEqual(error_count, 0,
                             "Total number of errors: " + str(error_count))
 
