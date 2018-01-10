@@ -25,6 +25,9 @@ LL_NDK = "LL-NDK"
 # LL-NDK dependencies that vendor modules cannot directly access.
 LL_NDK_INDIRECT = "LL-NDK-Indirect"
 
+# Same-process HAL implementation in vendor partition.
+SP_HAL = "SP-HAL"
+
 # Same-process NDK libraries that can be used by framework and vendor modules.
 SP_NDK = "SP-NDK"
 
@@ -95,10 +98,10 @@ def LoadVndkLibraryLists(data_file_path, version, *tags):
 
     Returns:
         A tuple of lists containing library names. Each list corresponds to
-        one tag in the argument.
+        one tag in the argument. For SP-HAL, the returned names are regular
+        expressions.
         None if the spreadsheet for the version is not found.
     """
-
     path = os.path.join(data_file_path, _GOLDEN_DIR,
                         version if version else _DEFAULT_VNDK_VERSION,
                         "eligible-list.csv")
@@ -115,13 +118,10 @@ def LoadVndkLibraryLists(data_file_path, version, *tags):
         for cells in reader:
             for tag_index, tag in enumerate(tags):
                 if tag == cells[1]:
-                    versioned_dir = cells[0].replace("${VER}", dir_suffix)
-                    # TODO(b/71368232) append version to dir in eligible list
-                    versioned_dir = (
-                        versioned_dir.
-                        replace("/vndk/", "/vndk" + dir_suffix + "/").
-                        replace("/vndk-sp/", "/vndk-sp" + dir_suffix + "/"))
+                    lib_name = cells[0].replace("${VNDK_VER}", dir_suffix)
+                    if lib_name.startswith("[regex]"):
+                        lib_name = lib_name[len("[regex]"):]
                     vndk_lists[tag_index].extend(
-                        versioned_dir.replace("${LIB}", lib)
+                        lib_name.replace("${LIB}", lib)
                         for lib in ("lib", "lib64"))
     return vndk_lists

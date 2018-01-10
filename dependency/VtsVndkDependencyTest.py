@@ -44,6 +44,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                    copied.
         _ll_ndk: Set of strings. The names of low-level NDK libraries in
                  /system/lib[64].
+        _sp_hal: List of patterns. The names of the same-process HAL libraries
+                 expected to be in /vendor/lib[64].
         _sp_ndk: Set of strings. The names of same-process NDK libraries in
                  /system/lib[64]/vndk-${VER}.
         _vndk: Set of strings. The names of VNDK core libraries in
@@ -52,8 +54,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                   /system/lib[64]/vndk-sp-${VER}.
         _vndk_sp_indirect: Set of strings. The names of VNDK-SP-Indirect
                            libraries in /system/lib[64]/vndk-sp-${VER}.
-        _SAME_PROCESS_HAL: List of patterns. The names of same-process HAL
-                           libraries expected to be in /vendor/lib[64].
         _SP_HAL_LINK_PATHS_32: 32-bit same-process HAL's link paths in
                                /vendor/lib.
         _SP_HAL_LINK_PATHS_64: 64-bit same-process HAL's link paths in
@@ -65,17 +65,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     """
     _TARGET_VENDOR_DIR = "/vendor"
 
-    # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
-    _SAME_PROCESS_HAL = [
-        re.compile(p)
-        for p in [
-            "android\\.hardware\\.graphics\\.mapper@\\d+\\.\\d+-impl\\.so$",
-            "gralloc\\..*\\.so$", "libEGL_.*\\.so$", "libGLES_.*\\.so$",
-            "libGLESv1_CM_.*\\.so$", "libGLESv2_.*\\.so$",
-            "libGLESv3_.*\\.so$", "libPVRRS\\.so$", "libRSDriver.*\\.so$",
-            "vulkan.*\\.so$"
-        ]
-    ]
     _SP_HAL_LINK_PATHS_32 = [
         "/vendor/lib/egl", "/vendor/lib/hw", "/vendor/lib"
     ]
@@ -117,17 +106,30 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         pull_output = self._dut.adb.pull(self._TARGET_VENDOR_DIR,
                                          self._temp_dir)
         logging.debug(pull_output)
+
         vndk_lists = vndk_data.LoadVndkLibraryLists(
             self.data_file_path,
             self._dut.vndk_version,
-            vndk_data.LL_NDK, vndk_data.SP_NDK, vndk_data.VNDK,
-            vndk_data.VNDK_SP, vndk_data.VNDK_SP_INDIRECT)
+            vndk_data.SP_HAL,
+            vndk_data.LL_NDK,
+            vndk_data.SP_NDK,
+            vndk_data.VNDK,
+            vndk_data.VNDK_SP,
+            vndk_data.VNDK_SP_INDIRECT)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
-        (self._ll_ndk, self._sp_ndk, self._vndk, self._vndk_sp,
+
+        sp_hal_strings = vndk_lists[0]
+        self._sp_hal = [re.compile(x) for x in sp_hal_strings]
+        (self._ll_ndk,
+         self._sp_ndk,
+         self._vndk,
+         self._vndk_sp,
          self._vndk_sp_indirect) = (
             set(path_utils.TargetBaseName(path) for path in vndk_list)
-            for vndk_list in vndk_lists)
+            for vndk_list in vndk_lists[1:])
+
         logging.debug("LL_NDK: %s", self._ll_ndk)
+        logging.debug("SP_HAL: %s", sp_hal_strings)
         logging.debug("SP_NDK: %s", self._sp_ndk)
         logging.debug("VNDK: %s", self._vndk)
         logging.debug("VNDK_SP: %s", self._vndk_sp)
@@ -262,8 +264,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                     key=lambda x: sp_hal_link_paths.index(x.target_dir))
         # Find same-process HAL and dependencies
         sp_hal_libs = set()
-        for file_name, obj in linkable_libs.iteritems():
-            if any(x.match(file_name) for x in self._SAME_PROCESS_HAL):
+        for obj in linkable_libs.itervalues():
+            if any(x.match(obj.target_path) for x in self._sp_hal):
                 self._DfsDependencies(obj, sp_hal_libs, linkable_libs)
         return sp_hal_libs
 
