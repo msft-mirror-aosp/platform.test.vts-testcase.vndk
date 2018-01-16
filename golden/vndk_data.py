@@ -48,24 +48,25 @@ VNDK_SP_INDIRECT = "VNDK-SP-Indirect"
 # VNDK-SP dependencies that vendor modules cannot directly access.
 VNDK_SP_INDIRECT_PRIVATE = "VNDK-SP-Indirect-Private"
 
+# The name of the data directory for devices with no VNDK version.
+DEFAULT_VNDK_VERSION = "P"
+
 # The ABI dump directories. 64-bit comes before 32-bit in order to sequentially
 # search for longest prefix.
 _ABI_NAMES = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
-
-# The name of the data directory for devices with no VNDK version.
-_DEFAULT_VNDK_VERSION = "P"
 
 # The data directory.
 _GOLDEN_DIR = os.path.join("vts", "testcases", "vndk", "golden")
 
 
-def GetAbiDumpDirectory(data_file_path, version, abi_name):
+def GetAbiDumpDirectory(data_file_path, version, abi_name, abi_bitness):
     """Returns the VNDK dump directory on host.
 
     Args:
         data_file_path: The path to VTS data directory.
         version: A string, the VNDK version.
         abi_name: A string, the ABI of the library dump.
+        abi_bitness: A string or an integer, 32 or 64.
 
     Returns:
         A string, the path to the dump directory.
@@ -77,9 +78,12 @@ def GetAbiDumpDirectory(data_file_path, version, abi_name):
         logging.warning("Unknown ABI %s.", abi_name)
         return None
 
-    dump_dir = os.path.join(data_file_path, _GOLDEN_DIR,
-                            version if version else _DEFAULT_VNDK_VERSION,
-                            abi_dir)
+    dump_dir = os.path.join(
+        data_file_path,
+        _GOLDEN_DIR,
+        version if version else DEFAULT_VNDK_VERSION,
+        abi_dir,
+        "lib64" if str(abi_bitness) == "64" else "lib")
 
     if not os.path.isdir(dump_dir):
         logging.warning("%s is not a directory.", dump_dir)
@@ -102,9 +106,11 @@ def LoadVndkLibraryLists(data_file_path, version, *tags):
         expressions.
         None if the spreadsheet for the version is not found.
     """
-    path = os.path.join(data_file_path, _GOLDEN_DIR,
-                        version if version else _DEFAULT_VNDK_VERSION,
-                        "eligible-list.csv")
+    path = os.path.join(
+        data_file_path,
+        _GOLDEN_DIR,
+        version if version else DEFAULT_VNDK_VERSION,
+        "eligible-list.csv")
     if not os.path.isfile(path):
         logging.warning("Cannot load %s.", path)
         return None
