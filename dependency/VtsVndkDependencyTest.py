@@ -220,23 +220,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                 self._DfsDependencies(searchable[dep_name], searched,
                                       searchable)
 
-    def _FindVendorLibs(self, bitness, objs):
-        """Finds vendor libraries that can be linked to vendor processes.
-
-        Args:
-            bitness: 32 or 64, the bitness of the returned libraries.
-            objs: List of ElfObject, the libraries/executables on vendor
-                  partition.
-
-        Returns:
-            Set of ElfObject, the vendor libraries including SP-HAL.
-        """
-        vendor_link_paths = self._GetVendorLinkPaths(bitness)
-        vendor_libs = set(obj for obj in objs if
-                          obj.bitness == bitness and
-                          obj.target_dir in vendor_link_paths)
-        return vendor_libs
-
     def _FindSpHalLibs(self, bitness, objs):
         """Finds same-process HAL libraries and their dependencies.
 
@@ -299,12 +282,14 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         - VNDK
         - VNDK-SP
         - VNDK-SP-Indirect
-        - Other libraries in vendor link paths, including SP-HAL.
+        - Other libraries in vendor link paths.
 
         Args:
             vendor_objs: Collection of ElfObject, the libraries/executables on
-                         vendor partition.
-            vendor_libs: Set of ElfObject, the libraries in vendor link paths.
+                         vendor partition, excluding VNDK-SP extension and
+                         SP-HAL.
+            vendor_libs: Set of ElfObject, the libraries in vendor link paths,
+                         including SP-HAL.
 
         Returns:
             List of tuples (path, disallowed_dependencies).
@@ -317,6 +302,31 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                                     x in self._vndk_sp_indirect or
                                     x in vendor_lib_names)
         return self._FilterDisallowedDependencies(vendor_objs, is_allowed_dep)
+
+    def _TestVndkSpExtDependency(self, vndk_sp_ext_libs):
+        """Tests if VNDK-SP extension libraries have disallowed dependencies.
+
+        A VNDK-SP extension library is allowed to depend on
+        - LL-NDK
+        - SP-NDK
+        - VNDK-SP
+        - VNDK-SP-Indirect
+        - Other VNDK-SP extension libraries, which is a subset of VNDK-SP and
+          VNDK-SP-Indirect.
+
+        Args:
+            vndk_sp_ext_libs: Collection of ElfObject, the VNDK-SP extension
+                              libraries on vendor partition.
+
+        Returns:
+            List of tuples (path, disallowed_dependencies).
+        """
+        is_allowed_dep = lambda x: (x in self._ll_ndk or
+                                    x in self._sp_ndk or
+                                    x in self._vndk_sp or
+                                    x in self._vndk_sp_indirect)
+        return self._FilterDisallowedDependencies(
+            vndk_sp_ext_libs, is_allowed_dep)
 
     def _TestSpHalDependency(self, sp_hal_libs):
         """Tests if SP-HAL libraries have disallowed dependencies.
@@ -353,19 +363,31 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             List of tuples (path, disallowed_dependencies).
         """
         vndk_sp_ext_dir = vndk_utils.GetVndkSpExtDirectory(bitness)
-        vendor_libs = self._FindVendorLibs(bitness, objs)
-        logging.info("%d-bit vendor libraries: %s",
-                     bitness, ", ".join([x.name for x in vendor_libs]))
+        vendor_link_paths = self._GetVendorLinkPaths(bitness)
+
+        vendor_libs = set(obj for obj in objs if
+                          obj.bitness == bitness and
+                          obj.target_dir in vendor_link_paths)
+        logging.info("%d-bit vendor libraries including SP-HAL: %s",
+                     bitness, ", ".join(x.name for x in vendor_libs))
+
         sp_hal_libs = self._FindSpHalLibs(bitness, objs)
         logging.info("%d-bit SP-HAL libraries: %s",
-                     bitness, ", ".join([x.name for x in sp_hal_libs]))
-        # Exclude VNDK-SP extension
-        # TODO(hsinyichen): b/68113025 check VNDK-SP extension dependencies
+                     bitness, ", ".join(x.name for x in sp_hal_libs))
+
+        vndk_sp_ext_libs = set(obj for obj in objs if
+                               obj.bitness == bitness and
+                               obj.target_dir == vndk_sp_ext_dir)
+        logging.info("%d-bit VNDK-SP extension libraries: %s",
+                     bitness, ", ".join(x.name for x in vndk_sp_ext_libs))
+
         vendor_objs = {obj for obj in objs if
                        obj.bitness == bitness and
                        obj not in sp_hal_libs and
-                       obj.target_dir != vndk_sp_ext_dir}
+                       obj not in vndk_sp_ext_libs}
         dep_errors = self._TestVendorDependency(vendor_objs, vendor_libs)
+
+        dep_errors.extend(self._TestVndkSpExtDependency(vndk_sp_ext_libs))
 
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.warning("Ignore dependency errors: %s", dep_errors)
