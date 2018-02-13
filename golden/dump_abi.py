@@ -84,18 +84,22 @@ def _ExecuteCommand(cmd, **kwargs):
     return stdout.strip()
 
 
-def GetBuildVariable(build_top_dir, var):
-    """Gets value of a variable from build config.
+def GetBuildVariables(build_top_dir, abs_path, vars):
+    """Gets values of variables from build config.
 
     Args:
         build_top_dir: The path to root directory of Android source.
-        var: The name of the variable.
+        abs_path: A boolean, whether to convert the values to absolute paths.
+        vars: A list of strings, the names of the variables.
 
     Returns:
-        A string which is the value of the variable.
+        A list of strings which are the values of the variables.
     """
-    cmd = ["build/soong/soong_ui.bash", "--dumpvar-mode", var]
-    return _ExecuteCommand(cmd, cwd=build_top_dir)
+    cmd = ["build/soong/soong_ui.bash", "--dumpvars-mode",
+           ("--abs-vars" if abs_path else "--vars"), " ".join(vars)]
+    stdout = _ExecuteCommand(cmd, cwd=build_top_dir)
+    print(stdout)
+    return [line.split("=", 1)[1].strip("'") for line in stdout.splitlines()]
 
 
 def FindBinary(file_name):
@@ -189,25 +193,6 @@ def DumpVtables(lib_path, dump_path, dumper_dir, include_symbols):
     return dump_string
 
 
-def GetSystemLibDirByArch(product_dir, arch_name):
-    """Returns the directory containing libraries for specific architecture.
-
-    Args:
-        product_dir: The path to the product output directory in Android source.
-        arch_name: The name of the CPU architecture.
-
-    Returns:
-        The path to the directory containing the libraries.
-    """
-    if arch_name in ("arm", "x86", "mips"):
-        src_dir = os.path.join(product_dir, "system", "lib")
-    elif arch_name in ("arm64", "x86_64", "mips64"):
-        src_dir = os.path.join(product_dir, "system", "lib64")
-    else:
-        sys.exit("Unknown target arch " + str(target_arch))
-    return src_dir
-
-
 def _LoadLibraryNames(file_names):
     """Loads library names from files.
 
@@ -232,15 +217,14 @@ def _LoadLibraryNames(file_names):
     return lib_names
 
 
-def DumpAbi(output_dir, lib_names, product_dir, object_dir, arch, dumper_dir):
+def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
     """Generates dump from libraries.
 
     Args:
         output_dir: The output directory of dump files.
         lib_names: The names of the libraries to dump.
-        product_dir: The path to the product output directory in Android source.
-        object_dir: The path to directory containing intermediate objects.
-        arch: A string representing the CPU architecture of the libraries.
+        lib_dir: The path to the directory containing the libraries to dump.
+        object_dir: The path to the directory containing intermediate objects.
         dumper_dir: The path to the directory containing the vtable dumper
                     executable and library.
     """
@@ -252,8 +236,7 @@ def DumpAbi(output_dir, lib_names, product_dir, object_dir, arch, dumper_dir):
             ar_name + ".a")
         static_symbols.update(ar_parser.ListGlobalSymbols(ar_path))
 
-    lib_dir = GetSystemLibDirByArch(product_dir, arch)
-    dump_dir = os.path.join(output_dir, arch)
+    dump_dir = os.path.join(output_dir, os.path.basename(lib_dir))
     for lib_name in lib_names:
         lib_path = os.path.join(lib_dir, lib_name)
         symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
@@ -285,31 +268,33 @@ def main():
     arg_parser.add_argument("--import-path", "-i", action="store",
                             help="the directory for VTS python modules. "
                                  "Default value is $ANDROID_BUILD_TOP/test")
-    arg_parser.add_argument("--output", "-o", action="store", required=True,
-                            help="output directory for ABI reference dump.")
+    arg_parser.add_argument("--output", "-o", action="store",
+                            help="output directory for ABI reference dump. "
+                                 "Default value is PLATFORM_VNDK_VERSION.")
     args = arg_parser.parse_args()
-
-    # Get product directory
-    product_dir = os.getenv("ANDROID_PRODUCT_OUT")
-    if not product_dir:
-        sys.exit("env var ANDROID_PRODUCT_OUT is not set")
-    print("ANDROID_PRODUCT_OUT=" + product_dir)
 
     # Get target architectures
     build_top_dir = os.getenv("ANDROID_BUILD_TOP")
     if not build_top_dir:
         sys.exit("env var ANDROID_BUILD_TOP is not set")
-    target_arch = GetBuildVariable(build_top_dir, "TARGET_ARCH")
-    target_obj_dir = GetBuildVariable(build_top_dir, "TARGET_OUT_INTERMEDIATES")
-    target_2nd_arch = GetBuildVariable(build_top_dir, "TARGET_2ND_ARCH")
-    target_2nd_obj_dir = GetBuildVariable(build_top_dir,
-                                          "2ND_TARGET_OUT_INTERMEDIATES")
-    print("TARGET_ARCH=" + target_arch)
-    print("TARGET_OUT_INTERMEDIATES=" + target_obj_dir)
-    print("TARGET_2ND_ARCH=" + target_2nd_arch)
-    print("2ND_TARGET_OUT_INTERMEDIATES=" + target_2nd_obj_dir)
-    target_obj_dir = os.path.join(build_top_dir, target_obj_dir)
-    target_2nd_obj_dir = os.path.join(build_top_dir, target_2nd_obj_dir)
+
+    (vndk_version,
+     target_arch,
+     target_2nd_arch) = GetBuildVariables(
+        build_top_dir, abs_path=False, vars=(
+            "PLATFORM_VNDK_VERSION",
+            "TARGET_ARCH",
+            "TARGET_2ND_ARCH"))
+
+    (target_lib_dir,
+     target_obj_dir,
+     target_2nd_lib_dir,
+     target_2nd_obj_dir) = GetBuildVariables(
+        build_top_dir, abs_path=True, vars=(
+            "TARGET_OUT_SHARED_LIBRARIES",
+            "TARGET_OUT_INTERMEDIATES",
+            "2ND_TARGET_OUT_SHARED_LIBRARIES",
+            "2ND_TARGET_OUT_INTERMEDIATES"))
 
     # Import elf_parser and vtable_parser
     ExternalModules.ImportParsers(args.import_path if args.import_path else
@@ -324,12 +309,17 @@ def main():
         dumper_dir = os.path.dirname(os.path.dirname(dumper_path))
     print("DUMPER_DIR=" + dumper_dir)
 
-    lib_names = _LoadLibraryNames(args.file)
-    DumpAbi(args.output, lib_names, product_dir, target_obj_dir, target_arch,
-            dumper_dir)
+    output_dir = os.path.join((args.output if args.output else vndk_version),
+                              target_arch)
+    print("OUTPUT_DIR=" + output_dir)
+
+    lib_names = [name.format(VNDK_VER="-" + vndk_version) for
+                 name in _LoadLibraryNames(args.file)]
+
+    DumpAbi(output_dir, lib_names, target_lib_dir, target_obj_dir, dumper_dir)
     if target_2nd_arch:
-        DumpAbi(args.output, lib_names, product_dir, target_2nd_obj_dir,
-                target_2nd_arch, dumper_dir)
+        DumpAbi(output_dir, lib_names, target_2nd_lib_dir, target_2nd_obj_dir,
+                dumper_dir)
 
 
 if __name__ == "__main__":
