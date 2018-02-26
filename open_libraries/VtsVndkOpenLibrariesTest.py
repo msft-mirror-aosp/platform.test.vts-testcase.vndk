@@ -104,13 +104,11 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
             self.data_file_path,
             self._dut.vndk_version,
             vndk_data.LL_NDK,
-            vndk_data.LL_NDK_INDIRECT,
-            vndk_data.SP_NDK,
-            vndk_data.SP_NDK_INDIRECT,
+            vndk_data.LL_NDK_PRIVATE,
             vndk_data.VNDK,
+            vndk_data.VNDK_PRIVATE,
             vndk_data.VNDK_SP,
-            vndk_data.VNDK_SP_INDIRECT,
-            vndk_data.VNDK_SP_INDIRECT_PRIVATE)
+            vndk_data.VNDK_SP_PRIVATE)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
         allowed_libs = set()
         for vndk_list in vndk_lists:
