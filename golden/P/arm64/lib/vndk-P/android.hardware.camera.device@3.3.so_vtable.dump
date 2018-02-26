@@ -53,8 +53,7 @@ _ZTVN7android8hardware6camera6device4V3_323BnHwCameraDeviceSessionE: 20 entries
 
 
 vtable for android::hardware::camera::device::V3_3::ICameraDeviceSession
-_ZTVN7android8hardware6camera6device4V3_320ICameraDeviceSessionE: 15 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware6camera6device4V3_320ICameraDeviceSessionE: 14 entries
 16    (int (*)(...)) _ZN7android8hardware6camera6device4V3_320ICameraDeviceSession14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware6camera6device4V3_320ICameraDeviceSession5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware6camera6device4V3_320ICameraDeviceSession19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

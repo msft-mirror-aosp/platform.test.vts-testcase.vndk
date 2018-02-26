@@ -50,8 +50,7 @@ _ZTVN7android8hardware7oemlock4V1_011BnHwOemLockE: 21 entries
 
 
 vtable for android::hardware::oemlock::V1_0::IOemLock
-_ZTVN7android8hardware7oemlock4V1_08IOemLockE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware7oemlock4V1_08IOemLockE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware7oemlock4V1_08IOemLock14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware7oemlock4V1_08IOemLock5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware7oemlock4V1_08IOemLock19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE
