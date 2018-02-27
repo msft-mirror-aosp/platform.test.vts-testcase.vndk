@@ -61,6 +61,8 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         _vndk_version: String, the VNDK version supported by the device.
         data_file_path: The path to VTS data directory.
     """
+    _ODM_LIB_DIR_32 = "/odm/lib"
+    _ODM_LIB_DIR_64 = "/odm/lib64"
     _VENDOR_LIB_DIR_32 = "/vendor/lib"
     _VENDOR_LIB_DIR_64 = "/vendor/lib64"
     _SYSTEM_LIB_DIR_32 = "/system/lib"
@@ -259,11 +261,17 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                 self._vndk_version, primary_abi, self.abi_bitness))
         logging.info("dump dir: %s", dump_dir)
 
+        odm_lib_dir = os.path.join(
+            self._temp_dir, "odm_lib_dir_" + self.abi_bitness)
         vendor_lib_dir = os.path.join(
             self._temp_dir, "vendor_lib_dir_" + self.abi_bitness)
         system_lib_dir = os.path.join(
             self._temp_dir, "system_lib_dir_" + self.abi_bitness)
-        logging.info("host lib dir: %s %s", vendor_lib_dir, system_lib_dir)
+        logging.info("host lib dir: %s %s %s",
+                     odm_lib_dir, vendor_lib_dir, system_lib_dir)
+        self._PullOrCreateDir(
+            getattr(self, "_ODM_LIB_DIR_" + self.abi_bitness),
+            odm_lib_dir)
         self._PullOrCreateDir(
             getattr(self, "_VENDOR_LIB_DIR_" + self.abi_bitness),
             vendor_lib_dir)
@@ -272,7 +280,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             system_lib_dir)
 
         error_count = self._ScanLibDirs(
-            dump_dir, [vendor_lib_dir, system_lib_dir], dump_version)
+            dump_dir, [odm_lib_dir, vendor_lib_dir, system_lib_dir], dump_version)
         asserts.assertEqual(error_count, 0,
                             "Total number of errors: " + str(error_count))
 

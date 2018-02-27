@@ -40,8 +40,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     Attributes:
         data_file_path: The path to VTS data directory.
         _dut: The AndroidDevice under test.
-        _temp_dir: The temporary directory to which the vendor partition is
-                   copied.
+        _temp_dir: The temporary directory to which the odm and vendor
+                   partitions are copied.
         _ll_ndk: Set of strings. The names of low-level NDK libraries in
                  /system/lib[64].
         _sp_hal: List of patterns. The names of the same-process HAL libraries
@@ -54,28 +54,20 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                   /system/lib[64]/vndk-sp-${VER}.
         _vndk_sp_indirect: Set of strings. The names of VNDK-SP-Indirect
                            libraries in /system/lib[64]/vndk-sp-${VER}.
-        _SP_HAL_LINK_PATHS_32: 32-bit same-process HAL's link paths in
-                               /vendor/lib.
-        _SP_HAL_LINK_PATHS_64: 64-bit same-process HAL's link paths in
-                               /vendor/lib64.
-        _VENDOR_LINK_PATHS_32: 32-bit vendor processes' link paths in
-                               /vendor/lib.
-        _VENDOR_LINK_PATHS_64: 64-bit vendor processes' link paths in
-                               /vendor/lib64.
+        _SP_HAL_LINK_PATHS: Format strings of same-process HAL's link paths.
+        _VENDOR_LINK_PATHS: Format strings of vendor processes' link paths.
     """
+    _TARGET_ROOT_DIR = "/"
+    _TARGET_ODM_DIR = "/odm"
     _TARGET_VENDOR_DIR = "/vendor"
 
-    _SP_HAL_LINK_PATHS_32 = [
-        "/vendor/lib/egl", "/vendor/lib/hw", "/vendor/lib"
+    _SP_HAL_LINK_PATHS = [
+        "/odm/{LIB}/egl", "/odm/{LIB}/hw", "/odm/{LIB}",
+        "/vendor/{LIB}/egl", "/vendor/{LIB}/hw", "/vendor/{LIB}"
     ]
-    _SP_HAL_LINK_PATHS_64 = [
-        "/vendor/lib64/egl", "/vendor/lib64/hw", "/vendor/lib64"
-    ]
-    _VENDOR_LINK_PATHS_32 = [
-        "/vendor/lib/hw", "/vendor/lib/egl", "/vendor/lib"
-    ]
-    _VENDOR_LINK_PATHS_64 = [
-        "/vendor/lib64/hw", "/vendor/lib64/egl", "/vendor/lib64"
+    _VENDOR_LINK_PATHS = [
+        "/odm/{LIB}/hw", "/odm/{LIB}/egl", "/odm/{LIB}",
+        "/vendor/{LIB}/hw", "/vendor/{LIB}/egl", "/vendor/{LIB}"
     ]
 
     class ElfObject(object):
@@ -102,10 +94,12 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         self.getUserParams(required_params)
         self._dut = self.android_devices[0]
         self._temp_dir = tempfile.mkdtemp()
-        logging.info("adb pull %s %s", self._TARGET_VENDOR_DIR, self._temp_dir)
-        pull_output = self._dut.adb.pull(self._TARGET_VENDOR_DIR,
-                                         self._temp_dir)
-        logging.debug(pull_output)
+        for target_dir in (self._TARGET_ODM_DIR, self._TARGET_VENDOR_DIR):
+            if target_file_utils.IsDirectory(target_dir, self._dut.shell):
+                logging.info("adb pull %s %s", target_dir, self._temp_dir)
+                self._dut.adb.pull(target_dir, self._temp_dir)
+            else:
+                logging.info("Skip adb pull %s", target_dir)
 
         vndk_lists = vndk_data.LoadVndkLibraryLists(
             self.data_file_path,
@@ -182,28 +176,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             objs.append(self.ElfObject(target_path, elf.bitness, deps))
         return objs
 
-    def _GetVendorLinkPaths(self, bitness):
-        """Returns 32/64-bit vendor processes' link paths.
-
-        Args:
-            bitness: 32 or 64, the bitness of the link paths..
-
-        Returns:
-            A list of strings, the vendor processes' link paths.
-        """
-        return getattr(self, "_VENDOR_LINK_PATHS_" + str(bitness))
-
-    def _GetSpHalLinkPaths(self, bitness):
-        """Returns 32/64-bit same-process HAL link paths.
-
-        Args:
-            bitness: 32 or 64, the bitness of the link paths.
-
-        Returns:
-           A list of strings, the same-process HAL link paths.
-        """
-        return getattr(self, "_SP_HAL_LINK_PATHS_" + str(bitness))
-
     def _DfsDependencies(self, lib, searched, searchable):
         """Depth-first-search for library dependencies.
 
@@ -225,15 +197,16 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         Args:
             bitness: 32 or 64, the bitness of the returned libraries.
-            objs: List of ElfObject, the libraries/executables on vendor
-                  partition.
+            objs: List of ElfObject, the libraries/executables in odm and
+                  vendor partitions.
 
         Returns:
             Set of ElfObject, the same-process HAL libraries and their
             dependencies.
         """
         # Map file names to libraries which can be linked to same-process HAL
-        sp_hal_link_paths = self._GetSpHalLinkPaths(bitness)
+        sp_hal_link_paths = [vndk_utils.FormatVndkPath(x, bitness) for
+                             x in self._SP_HAL_LINK_PATHS]
         vendor_libs = [obj for obj in objs if
                        obj.bitness == bitness and
                        obj.target_dir in sp_hal_link_paths]
@@ -285,9 +258,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         - Other libraries in vendor link paths.
 
         Args:
-            vendor_objs: Collection of ElfObject, the libraries/executables on
-                         vendor partition, excluding VNDK-SP extension and
-                         SP-HAL.
+            vendor_objs: Collection of ElfObject, the libraries/executables in
+                         odm and vendor partitions, excluding VNDK-SP extension
+                         and SP-HAL.
             vendor_libs: Set of ElfObject, the libraries in vendor link paths,
                          including SP-HAL.
 
@@ -316,7 +289,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         Args:
             vndk_sp_ext_libs: Collection of ElfObject, the VNDK-SP extension
-                              libraries on vendor partition.
+                              libraries.
 
         Returns:
             List of tuples (path, disallowed_dependencies).
@@ -356,19 +329,20 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         Args:
             bitness: 32 or 64, the bitness of the vendor libraries.
-            objs: List of ElfObject. The libraries/executables on vendor
-                  partition.
+            objs: List of ElfObject. The libraries/executables in odm and
+                  vendor partitions.
 
         Returns:
             List of tuples (path, disallowed_dependencies).
         """
-        vndk_sp_ext_dir = vndk_utils.GetVndkSpExtDirectory(bitness)
-        vendor_link_paths = self._GetVendorLinkPaths(bitness)
+        vndk_sp_ext_dirs = vndk_utils.GetVndkSpExtDirectories(bitness)
+        vendor_link_paths = [vndk_utils.FormatVndkPath(x, bitness) for
+                             x in self._VENDOR_LINK_PATHS]
 
         vendor_libs = set(obj for obj in objs if
                           obj.bitness == bitness and
                           obj.target_dir in vendor_link_paths)
-        logging.info("%d-bit vendor libraries including SP-HAL: %s",
+        logging.info("%d-bit odm and vendor libraries including SP-HAL: %s",
                      bitness, ", ".join(x.name for x in vendor_libs))
 
         sp_hal_libs = self._FindSpHalLibs(bitness, objs)
@@ -377,7 +351,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         vndk_sp_ext_libs = set(obj for obj in objs if
                                obj.bitness == bitness and
-                               obj.target_dir == vndk_sp_ext_dir)
+                               obj.target_dir in vndk_sp_ext_dirs)
         logging.info("%d-bit VNDK-SP extension libraries: %s",
                      bitness, ", ".join(x.name for x in vndk_sp_ext_libs))
 
@@ -401,9 +375,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         read_errors = []
         abi_list = self._dut.getCpuAbiList()
         objs = self._LoadElfObjects(
-            self._temp_dir,
-            path_utils.TargetDirName(self._TARGET_VENDOR_DIR),
-            abi_list,
+            self._temp_dir, self._TARGET_ROOT_DIR, abi_list,
             lambda p, e: read_errors.append((p, str(e))))
 
         dep_errors = self._TestElfDependency(32, objs)
