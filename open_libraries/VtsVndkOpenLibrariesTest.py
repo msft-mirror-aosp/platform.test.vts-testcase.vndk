@@ -119,7 +119,8 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
 
         asserts.assertTrue(self._dut.isAdbRoot,
                            "Must be root to find all libraries in use.")
-        cmds = self._ListProcessCommands(lambda x: x.startswith("/vendor/"))
+        cmds = self._ListProcessCommands(lambda x: (x.startswith("/odm/") or
+                                                    x.startswith("/vendor/")))
         deps = self._ListOpenFiles(cmds.keys(),
                                    lambda x: (x.startswith("/system/") and
                                               x.endswith(".so") and
