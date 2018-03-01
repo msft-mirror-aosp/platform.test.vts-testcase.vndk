@@ -51,8 +51,7 @@ _ZTVN7android8hardware8graphics6mapper4V2_010BnHwMapperE: 21 entries
 
 
 vtable for android::hardware::graphics::mapper::V2_0::IMapper
-_ZTVN7android8hardware8graphics6mapper4V2_07IMapperE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware8graphics6mapper4V2_07IMapperE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware8graphics6mapper4V2_07IMapper14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware8graphics6mapper4V2_07IMapper5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware8graphics6mapper4V2_07IMapper19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

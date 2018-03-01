@@ -95,3 +95,4 @@ kGcovPrefixEnvVar
 kGcovPrefixOverrideEnvVar
 kGcovPrefixPath
 kSysPropHalCoverage
+kSysPropInstrumentationPath
