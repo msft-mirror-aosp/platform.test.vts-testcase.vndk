@@ -50,8 +50,7 @@ _ZTVN7android8hardware5power4V1_09BnHwPowerE: 21 entries
 
 
 vtable for android::hardware::power::V1_0::IPower
-_ZTVN7android8hardware5power4V1_06IPowerE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware5power4V1_06IPowerE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware5power4V1_06IPower14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware5power4V1_06IPower5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware5power4V1_06IPower19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

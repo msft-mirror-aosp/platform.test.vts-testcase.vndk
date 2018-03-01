@@ -46,8 +46,7 @@ _ZTVN7android8hardware8memtrack4V1_012BnHwMemtrackE: 21 entries
 
 
 vtable for android::hardware::memtrack::V1_0::IMemtrack
-_ZTVN7android8hardware8memtrack4V1_09IMemtrackE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE4syncEv
+_ZTVN7android8hardware8memtrack4V1_09IMemtrackE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware8memtrack4V1_09IMemtrack14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware8memtrack4V1_09IMemtrack5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware8memtrack4V1_09IMemtrack19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

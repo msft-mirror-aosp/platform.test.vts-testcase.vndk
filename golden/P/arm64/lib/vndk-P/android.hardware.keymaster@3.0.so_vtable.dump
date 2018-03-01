@@ -60,8 +60,7 @@ _ZTVN7android8hardware9keymaster4V3_019BnHwKeymasterDeviceE: 21 entries
 
 
 vtable for android::hardware::keymaster::V3_0::IKeymasterDevice
-_ZTVN7android8hardware9keymaster4V3_016IKeymasterDeviceE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE4syncEv
+_ZTVN7android8hardware9keymaster4V3_016IKeymasterDeviceE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware9keymaster4V3_016IKeymasterDevice14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware9keymaster4V3_016IKeymasterDevice5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware9keymaster4V3_016IKeymasterDevice19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

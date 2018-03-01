@@ -50,8 +50,7 @@ _ZTVN7android8hardware8vibrator4V1_112BnHwVibratorE: 20 entries
 
 
 vtable for android::hardware::vibrator::V1_1::IVibrator
-_ZTVN7android8hardware8vibrator4V1_19IVibratorE: 15 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware8vibrator4V1_19IVibratorE: 14 entries
 16    (int (*)(...)) _ZN7android8hardware8vibrator4V1_19IVibrator14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware8vibrator4V1_19IVibrator5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware8vibrator4V1_19IVibrator19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

@@ -1,0 +1,8 @@
+vtable for android::hardware::media::c2::V1_0::implementation::InputSurfaceConnection
+_ZTVN7android8hardware5media2c24V1_014implementation22InputSurfaceConnectionE: 6 entries
+16    (int (*)(...)) _ZN7android8hardware5media2c24V1_014implementation22InputSurfaceConnectionD2Ev
+24    (int (*)(...)) _ZN7android8hardware5media2c24V1_014implementation22InputSurfaceConnectionD0Ev
+32    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+40    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+48    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+56    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv

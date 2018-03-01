@@ -49,8 +49,7 @@ _ZTVN7android8hardware3cas6native4V1_015BnHwDescramblerE: 20 entries
 
 
 vtable for android::hardware::cas::native::V1_0::IDescrambler
-_ZTVN7android8hardware3cas6native4V1_012IDescramblerE: 15 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware3cas6native4V1_012IDescramblerE: 14 entries
 16    (int (*)(...)) _ZN7android8hardware3cas6native4V1_012IDescrambler14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware3cas6native4V1_012IDescrambler5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware3cas6native4V1_012IDescrambler19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE

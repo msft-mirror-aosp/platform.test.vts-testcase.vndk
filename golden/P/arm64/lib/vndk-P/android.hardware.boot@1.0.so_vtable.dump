@@ -54,8 +54,7 @@ _ZTVN7android8hardware4boot4V1_015BnHwBootControlE: 21 entries
 
 
 vtable for android::hardware::boot::V1_0::IBootControl
-_ZTVN7android8hardware4boot4V1_012IBootControlE: 16 entries
-12    (int (*)(...)) _ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv
+_ZTVN7android8hardware4boot4V1_012IBootControlE: 15 entries
 16    (int (*)(...)) _ZN7android8hardware4boot4V1_012IBootControl14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
 20    (int (*)(...)) _ZN7android8hardware4boot4V1_012IBootControl5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
 24    (int (*)(...)) _ZN7android8hardware4boot4V1_012IBootControl19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE
