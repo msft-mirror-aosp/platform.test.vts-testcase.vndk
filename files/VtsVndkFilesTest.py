@@ -117,7 +117,8 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
         self._TestVndkDirectory(
             vndk_utils.GetVndkCoreDirectory(
                 self.abi_bitness, self._vndk_version),
-            vndk_data.VNDK)
+            vndk_data.VNDK,
+            vndk_data.VNDK_PRIVATE)
 
     def testVndkSpDirectory(self):
         """Verifies that VNDK-SP directory doesn't contain extra files."""
@@ -125,8 +126,7 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
             vndk_utils.GetVndkSpDirectory(
                 self.abi_bitness, self._vndk_version),
             vndk_data.VNDK_SP,
-            vndk_data.VNDK_SP_INDIRECT,
-            vndk_data.VNDK_SP_INDIRECT_PRIVATE)
+            vndk_data.VNDK_SP_PRIVATE)
 
     def testNoLlndkInVendor(self):
         """Verifies that vendor partition has no LL-NDK libraries."""

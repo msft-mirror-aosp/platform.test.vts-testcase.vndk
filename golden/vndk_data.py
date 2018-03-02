@@ -23,30 +23,23 @@ import os
 LL_NDK = "LL-NDK"
 
 # LL-NDK dependencies that vendor modules cannot directly access.
-LL_NDK_INDIRECT = "LL-NDK-Indirect"
+LL_NDK_PRIVATE = "LL-NDK-Private"
 
 # Same-process HAL implementation in vendor partition.
 SP_HAL = "SP-HAL"
-
-# Same-process NDK libraries that can be used by framework and vendor modules.
-SP_NDK = "SP-NDK"
-
-# SP-NDK dependencies that vendor modules cannot directly access.
-SP_NDK_INDIRECT = "SP-NDK-Indirect"
 
 # Framework libraries that can be used by vendor modules except same-process HAL
 # and its dependencies in vendor partition.
 VNDK = "VNDK"
 
+# VNDK dependencies that vendor modules cannot directly access.
+VNDK_PRIVATE = "VNDK-Private"
+
 # Same-process HAL dependencies in framework.
 VNDK_SP = "VNDK-SP"
 
-# VNDK-SP dependencies that same-process HAL and its dependencies in vendor
-# partition cannot directly access. Other vendor modules can access them.
-VNDK_SP_INDIRECT = "VNDK-SP-Indirect"
-
 # VNDK-SP dependencies that vendor modules cannot directly access.
-VNDK_SP_INDIRECT_PRIVATE = "VNDK-SP-Indirect-Private"
+VNDK_SP_PRIVATE = "VNDK-SP-Private"
 
 # The name of the data directory for devices with no VNDK version.
 DEFAULT_VNDK_VERSION = "P"
