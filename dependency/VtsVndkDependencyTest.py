@@ -46,14 +46,10 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                  /system/lib[64].
         _sp_hal: List of patterns. The names of the same-process HAL libraries
                  expected to be in /vendor/lib[64].
-        _sp_ndk: Set of strings. The names of same-process NDK libraries in
-                 /system/lib[64]/vndk-${VER}.
         _vndk: Set of strings. The names of VNDK core libraries in
                /system/lib[64]/vndk-${VER}.
         _vndk_sp: Set of strings. The names of VNDK-SP libraries in
                   /system/lib[64]/vndk-sp-${VER}.
-        _vndk_sp_indirect: Set of strings. The names of VNDK-SP-Indirect
-                           libraries in /system/lib[64]/vndk-sp-${VER}.
         _SP_HAL_LINK_PATHS: Format strings of same-process HAL's link paths.
         _VENDOR_LINK_PATHS: Format strings of vendor processes' link paths.
     """
@@ -106,28 +102,22 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             self._dut.vndk_version,
             vndk_data.SP_HAL,
             vndk_data.LL_NDK,
-            vndk_data.SP_NDK,
             vndk_data.VNDK,
-            vndk_data.VNDK_SP,
-            vndk_data.VNDK_SP_INDIRECT)
+            vndk_data.VNDK_SP)
         asserts.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
 
         sp_hal_strings = vndk_lists[0]
         self._sp_hal = [re.compile(x) for x in sp_hal_strings]
         (self._ll_ndk,
-         self._sp_ndk,
          self._vndk,
-         self._vndk_sp,
-         self._vndk_sp_indirect) = (
+         self._vndk_sp) = (
             set(path_utils.TargetBaseName(path) for path in vndk_list)
             for vndk_list in vndk_lists[1:])
 
         logging.debug("LL_NDK: %s", self._ll_ndk)
         logging.debug("SP_HAL: %s", sp_hal_strings)
-        logging.debug("SP_NDK: %s", self._sp_ndk)
         logging.debug("VNDK: %s", self._vndk)
         logging.debug("VNDK_SP: %s", self._vndk_sp)
-        logging.debug("VNDK_SP_INDIRECT: %s", self._vndk_sp_indirect)
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
@@ -251,10 +241,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         A vendor library/executable is allowed to depend on
         - LL-NDK
-        - SP-NDK
         - VNDK
         - VNDK-SP
-        - VNDK-SP-Indirect
         - Other libraries in vendor link paths.
 
         Args:
@@ -269,10 +257,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         """
         vendor_lib_names = set(x.name for x in vendor_libs)
         is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._sp_ndk or
                                     x in self._vndk or
                                     x in self._vndk_sp or
-                                    x in self._vndk_sp_indirect or
                                     x in vendor_lib_names)
         return self._FilterDisallowedDependencies(vendor_objs, is_allowed_dep)
 
@@ -281,11 +267,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         A VNDK-SP extension library is allowed to depend on
         - LL-NDK
-        - SP-NDK
         - VNDK-SP
-        - VNDK-SP-Indirect
-        - Other VNDK-SP extension libraries, which is a subset of VNDK-SP and
-          VNDK-SP-Indirect.
+        - Other VNDK-SP extension libraries, which is a subset of VNDK-SP.
 
         Args:
             vndk_sp_ext_libs: Collection of ElfObject, the VNDK-SP extension
@@ -294,10 +277,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         Returns:
             List of tuples (path, disallowed_dependencies).
         """
-        is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._sp_ndk or
-                                    x in self._vndk_sp or
-                                    x in self._vndk_sp_indirect)
+        is_allowed_dep = lambda x: (x in self._ll_ndk or x in self._vndk_sp)
         return self._FilterDisallowedDependencies(
             vndk_sp_ext_libs, is_allowed_dep)
 
@@ -306,7 +286,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         A same-process HAL library is allowed to depend on
         - LL-NDK
-        - SP-NDK
         - VNDK-SP
         - Other same-process HAL libraries and dependencies
 
@@ -319,7 +298,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         """
         sp_hal_lib_names = set(x.name for x in sp_hal_libs)
         is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._sp_ndk or
                                     x in self._vndk_sp or
                                     x in sp_hal_lib_names)
         return self._FilterDisallowedDependencies(sp_hal_libs, is_allowed_dep)
