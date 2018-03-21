@@ -1,3 +1,4 @@
+_Unwind_VRS_Interpret
 _ZN4vixl10CodeBuffer10EmitStringEPKc
 _ZN4vixl10CodeBuffer10UpdateDataEjPKvj
 _ZN4vixl10CodeBuffer11SetWritableEv
@@ -1767,3 +1768,20 @@ _ZTVN4vixl7aarch648DebuggerE
 _ZTVN4vixl7aarch649SimulatorE
 _ZThn32_N4vixl7aarch6414MacroAssemblerD0Ev
 _ZThn32_N4vixl7aarch6414MacroAssemblerD1Ev
+__aeabi_unwind_cpp_pr1
+__aeabi_unwind_cpp_pr2
+decode_eht_entry
+unw_get_fpreg
+unw_get_proc_info
+unw_get_proc_name
+unw_get_reg
+unw_init_local
+unw_is_fpreg
+unw_is_signal_frame
+unw_local_addr_space
+unw_regname
+unw_resume
+unw_save_vfp_as_X
+unw_set_fpreg
+unw_set_reg
+unw_step
