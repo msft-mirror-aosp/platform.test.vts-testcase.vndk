@@ -1,7 +1,7 @@
 vtable for android::C2AllocationIon
 _ZTVN7android15C2AllocationIonE: 7 entries
-8    (int (*)(...)) _ZN7android15C2AllocationIon3mapEjj13C2MemoryUsagePiPPv
-12    (int (*)(...)) _ZN7android15C2AllocationIon5unmapEPvjPi
+8    (int (*)(...)) _ZN7android15C2AllocationIon3mapEjj13C2MemoryUsageP7C2FencePPv
+12    (int (*)(...)) _ZN7android15C2AllocationIon5unmapEPvjP7C2Fence
 16    (int (*)(...)) _ZNK7android15C2AllocationIon14getAllocatorIdEv
 20    (int (*)(...)) _ZNK7android15C2AllocationIon6handleEv
 24    (int (*)(...)) _ZNK7android15C2AllocationIon6equalsERKNSt3__110shared_ptrI18C2LinearAllocationEE
@@ -22,8 +22,8 @@ _ZTVN7android14C2AllocatorIonE: 7 entries
 
 vtable for android::C2AllocationGralloc
 _ZTVN7android19C2AllocationGrallocE: 5 entries
-8    (int (*)(...)) _ZN7android19C2AllocationGralloc3mapE6C2Rect13C2MemoryUsagePiP14C2PlanarLayoutPPh
-12    (int (*)(...)) _ZN7android19C2AllocationGralloc5unmapEP7C2Fence
+8    (int (*)(...)) _ZN7android19C2AllocationGralloc3mapE6C2Rect13C2MemoryUsageP7C2FenceP14C2PlanarLayoutPPh
+12    (int (*)(...)) _ZN7android19C2AllocationGralloc5unmapEPPh6C2RectP7C2Fence
 24    (int (*)(...)) _ZNK7android19C2AllocationGralloc6equalsERKNSt3__110shared_ptrIK19C2GraphicAllocationEE
 28    (int (*)(...)) _ZN7android19C2AllocationGrallocD2Ev
 32    (int (*)(...)) _ZN7android19C2AllocationGrallocD0Ev
@@ -45,16 +45,29 @@ _ZTV22C2BasicLinearBlockPool: 1 entries
 16    (int (*)(...)) _ZN22C2BasicLinearBlockPool16fetchLinearBlockEj13C2MemoryUsagePNSt3__110shared_ptrI13C2LinearBlockEE
 
 
+vtable for C2PooledBlockPool
+_ZTV17C2PooledBlockPool: 3 entries
+16    (int (*)(...)) _ZN17C2PooledBlockPool16fetchLinearBlockEj13C2MemoryUsagePNSt3__110shared_ptrI13C2LinearBlockEE
+28    (int (*)(...)) _ZN17C2PooledBlockPoolD2Ev
+32    (int (*)(...)) _ZN17C2PooledBlockPoolD0Ev
+
+
 vtable for C2BasicGraphicBlockPool
 _ZTV23C2BasicGraphicBlockPool: 1 entries
 24    (int (*)(...)) _ZN23C2BasicGraphicBlockPool17fetchGraphicBlockEjjj13C2MemoryUsagePNSt3__110shared_ptrI14C2GraphicBlockEE
 
 
+vtable for _C2BufferPoolAllocator
+_ZTV22_C2BufferPoolAllocator: 2 entries
+8    (int (*)(...)) _ZN22_C2BufferPoolAllocator8allocateERKNSt3__16vectorIhNS0_9allocatorIhEEEEPNS0_10shared_ptrIN7android8hardware5media10bufferpool4V1_014implementation20BufferPoolAllocationEEE
+12    (int (*)(...)) _ZN22_C2BufferPoolAllocator10compatibleERKNSt3__16vectorIhNS0_9allocatorIhEEEES6_
+
+
 vtable for android::C2PlatformAllocatorStoreImpl
 _ZTVN7android28C2PlatformAllocatorStoreImplE: 3 entries
 16    (int (*)(...)) _ZN7android28C2PlatformAllocatorStoreImpl14fetchAllocatorEjPNSt3__110shared_ptrI11C2AllocatorEE
-20    (int (*)(...)) _ZNSt3__110__function6__funcINS_14default_deleteI11C2ComponentEENS_9allocatorIS4_EEFvPS3_EE7destroyEv
-24    (int (*)(...)) _ZNSt3__120__shared_ptr_pointerIP8C2BufferNS_14default_deleteIS1_EENS_9allocatorIS1_EEE21__on_zero_shared_weakEv
+20    (int (*)(...)) _ZNSt3__110__function6__funcINS_14default_deleteI20C2ComponentInterfaceEENS_9allocatorIS4_EEFvPS3_EE7destroyEv
+24    (int (*)(...)) _ZNSt3__120__shared_ptr_emplaceIN10C2ReadView4ImplENS_9allocatorIS2_EEE21__on_zero_shared_weakEv
 
 
 vtable for android::C2PlatformComponentStore::ComponentModule

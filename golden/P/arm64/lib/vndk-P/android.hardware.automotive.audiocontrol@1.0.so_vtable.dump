@@ -10,7 +10,7 @@ _ZTVN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControlE: 20 ent
 44    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl12getDebugInfoENSt3__18functionIFvRKNS_4hidl4base4V1_09DebugInfoEEEE
 48    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl21notifySyspropsChangedEv
 52    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl13unlinkToDeathERKNS_2spINS0_20hidl_death_recipientEEE
-64    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl16getBusForContextEj
+64    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl16getBusForContextENS3_13ContextNumberE
 68    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl21setBalanceTowardRightEf
 72    (int (*)(...)) _ZN7android8hardware10automotive12audiocontrol4V1_016BpHwAudioControl18setFadeTowardFrontEf
 124    (int (*)(...)) _ZN7android8hardware11BpHwRefBase10onFirstRefEv

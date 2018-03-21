@@ -1,0 +1,75 @@
+vtable for vendor::google::media::c2::V1_0::implementation::Component
+_ZTVN6vendor6google5media2c24V1_014implementation9ComponentE: 25 entries
+16    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent14interfaceChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent5debugERKN7android8hardware11hidl_handleERKNS6_8hidl_vecINS6_11hidl_stringEEE
+24    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent19interfaceDescriptorENSt3__18functionIFvRKN7android8hardware11hidl_stringEEEE
+28    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent12getHashChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent21setHALInstrumentationEv
+36    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent11linkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent4pingEv
+44    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent12getDebugInfoENSt3__18functionIFvRKN7android4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN6vendor6google5media2c24V1_010IComponent13unlinkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEE
+84    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component5queueERKNS3_10WorkBundleE
+88    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component5flushENSt3__18functionIFvNS3_6StatusERKNS3_10WorkBundleEEEE
+92    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component5drainEb
+96    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component21connectToInputSurfaceERKN7android2spINS3_13IInputSurfaceEEE
+100    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component24connectToOmxInputSurfaceERKN7android2spINS6_8hardware8graphics11bufferqueue4V1_022IGraphicBufferProducerEEERKNS7_INS8_5media3omx4V1_020IGraphicBufferSourceEEE
+104    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component26disconnectFromInputSurfaceEv
+108    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component15createBlockPoolEjNSt3__18functionIFvNS3_6StatusEyRKN7android2spINS3_13IConfigurableEEEEEE
+112    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component5startEv
+116    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component4stopEv
+120    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component5resetEv
+124    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation9Component7releaseEv
+164    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+168    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+172    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+176    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv
+
+
+vtable for vendor::google::media::c2::V1_0::implementation::ComponentStore
+_ZTVN6vendor6google5media2c24V1_014implementation14ComponentStoreE: 21 entries
+16    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore14interfaceChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore5debugERKN7android8hardware11hidl_handleERKNS6_8hidl_vecINS6_11hidl_stringEEE
+24    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore19interfaceDescriptorENSt3__18functionIFvRKN7android8hardware11hidl_stringEEEE
+28    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore12getHashChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore21setHALInstrumentationEv
+36    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore11linkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore4pingEv
+44    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore12getDebugInfoENSt3__18functionIFvRKN7android4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN6vendor6google5media2c24V1_015IComponentStore13unlinkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEE
+84    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore15createComponentERKN7android8hardware11hidl_stringERKNS6_2spINS3_18IComponentListenerEEERKNSB_INS7_5media10bufferpool4V1_014IClientManagerEEENSt3__18functionIFvNS3_6StatusERKNSB_INS3_10IComponentEEEEEE
+88    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore15createInterfaceERKN7android8hardware11hidl_stringENSt3__18functionIFvNS3_6StatusERKNS6_2spINS3_19IComponentInterfaceEEEEEE
+92    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore14listComponentsENSt3__18functionIFvRKN7android8hardware8hidl_vecINS3_15IComponentStore15ComponentTraitsEEEEEE
+96    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore18createInputSurfaceEv
+100    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore20getStructDescriptorsERKN7android8hardware8hidl_vecIjEENSt3__18functionIFvNS3_6StatusERKNS8_INS3_16StructDescriptorEEEEEE
+104    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore20getPoolClientManagerEv
+108    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation14ComponentStore10copyBufferERKNS3_6BufferES8_
+148    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+152    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+156    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+160    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv
+
+
+vtable for vendor::google::media::c2::V1_0::implementation::CachedConfigurable
+_ZTVN6vendor6google5media2c24V1_014implementation18CachedConfigurableE: 19 entries
+16    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable14interfaceChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable5debugERKN7android8hardware11hidl_handleERKNS6_8hidl_vecINS6_11hidl_stringEEE
+24    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable19interfaceDescriptorENSt3__18functionIFvRKN7android8hardware11hidl_stringEEEE
+28    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable12getHashChainENSt3__18functionIFvRKN7android8hardware8hidl_vecINS8_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable21setHALInstrumentationEv
+36    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable11linkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable4pingEv
+44    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable12getDebugInfoENSt3__18functionIFvRKN7android4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN6vendor6google5media2c24V1_013IConfigurable13unlinkToDeathERKN7android2spINS5_8hardware20hidl_death_recipientEEE
+64    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation18CachedConfigurable7getNameENSt3__18functionIFvRKN7android8hardware11hidl_stringEEEE
+68    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation18CachedConfigurable5queryERKN7android8hardware8hidl_vecIjEEbNSt3__18functionIFvNS3_6StatusERKNS8_IhEEEEE
+72    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation18CachedConfigurable6configERKN7android8hardware8hidl_vecIhEEbNSt3__18functionIFvNS3_6StatusERKNS8_INS3_13SettingResultEEESB_EEE
+76    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation18CachedConfigurable20querySupportedParamsEjjNSt3__18functionIFvNS3_6StatusERKN7android8hardware8hidl_vecINS3_15ParamDescriptorEEEEEE
+80    (int (*)(...)) _ZN6vendor6google5media2c24V1_014implementation18CachedConfigurable20querySupportedValuesERKN7android8hardware8hidl_vecINS3_25FieldSupportedValuesQueryEEEbNSt3__18functionIFvNS3_6StatusERKNS8_INS3_31FieldSupportedValuesQueryResultEEEEEE
+120    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+124    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+128    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+132    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv
