@@ -227,6 +227,9 @@ def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
         object_dir: The path to the directory containing intermediate objects.
         dumper_dir: The path to the directory containing the vtable dumper
                     executable and library.
+
+    Returns:
+        A list of strings, the paths to the libraries not found in lib_dir.
     """
     ar_parser = ExternalModules.ar_parser
     static_symbols = set()
@@ -236,12 +239,18 @@ def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
             ar_name + ".a")
         static_symbols.update(ar_parser.ListGlobalSymbols(ar_path))
 
+    missing_libs = []
     dump_dir = os.path.join(output_dir, os.path.basename(lib_dir))
     for lib_name in lib_names:
         lib_path = os.path.join(lib_dir, lib_name)
         symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
         vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
         print(lib_path)
+        if not os.path.isfile(lib_path):
+            missing_libs.append(lib_path)
+            print("Warning: Not found")
+            print("")
+            continue
         symbols = DumpSymbols(lib_path, symbol_dump_path, static_symbols)
         if symbols:
             print("Output: " + symbol_dump_path)
@@ -254,6 +263,7 @@ def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
         else:
             print("No vtables")
         print("")
+    return missing_libs
 
 
 def main():
@@ -316,10 +326,16 @@ def main():
     lib_names = [name.format(VNDK_VER="-" + vndk_version) for
                  name in _LoadLibraryNames(args.file)]
 
-    DumpAbi(output_dir, lib_names, target_lib_dir, target_obj_dir, dumper_dir)
+    missing_libs = DumpAbi(output_dir, lib_names, target_lib_dir,
+                           target_obj_dir, dumper_dir)
     if target_2nd_arch:
-        DumpAbi(output_dir, lib_names, target_2nd_lib_dir, target_2nd_obj_dir,
-                dumper_dir)
+        missing_libs += DumpAbi(output_dir, lib_names, target_2nd_lib_dir,
+                                target_2nd_obj_dir, dumper_dir)
+
+    if missing_libs:
+        print("Warning: Could not find libraries:")
+        for lib_path in missing_libs:
+            print(lib_path)
 
 
 if __name__ == "__main__":

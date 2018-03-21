@@ -1,0 +1,67 @@
+vtable for android::hardware::media::bufferpool::V1_0::implementation::Accessor
+_ZTVN7android8hardware5media10bufferpool4V1_014implementation8AccessorE: 19 entries
+16    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
+24    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE
+28    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor12getHashChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor21setHALInstrumentationEv
+36    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor11linkToDeathERKNS_2spINS0_20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor4pingEv
+44    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor12getDebugInfoENSt3__18functionIFvRKNS_4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_09IAccessor13unlinkToDeathERKNS_2spINS0_20hidl_death_recipientEEE
+56    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation8AccessorD1Ev
+60    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation8AccessorD0Ev
+64    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation8Accessor7connectENSt3__18functionIFvNS3_12ResultStatusERKNS_2spINS3_11IConnectionEEExRKNS0_12MQDescriptorINS3_19BufferStatusMessageELNS0_8MQFlavorE1EEEEEE
+96    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation8AccessorD1Ev
+100    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation8AccessorD0Ev
+104    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+108    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+112    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+116    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv
+
+
+vtable for android::hardware::media::bufferpool::V1_0::implementation::ClientManager
+_ZTVN7android8hardware5media10bufferpool4V1_014implementation13ClientManagerE: 19 entries
+16    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
+24    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE
+28    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager12getHashChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager21setHALInstrumentationEv
+36    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager11linkToDeathERKNS_2spINS0_20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager4pingEv
+44    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager12getDebugInfoENSt3__18functionIFvRKNS_4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014IClientManager13unlinkToDeathERKNS_2spINS0_20hidl_death_recipientEEE
+56    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation13ClientManagerD1Ev
+60    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation13ClientManagerD0Ev
+64    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation13ClientManager14registerSenderERKNS_2spINS3_9IAccessorEEENSt3__18functionIFvNS3_12ResultStatusExEEE
+96    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation13ClientManagerD1Ev
+100    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation13ClientManagerD0Ev
+104    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+108    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+112    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+116    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv
+
+
+vtable for android::hardware::media::bufferpool::V1_0::implementation::Connection
+_ZTVN7android8hardware5media10bufferpool4V1_014implementation10ConnectionE: 19 entries
+16    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection14interfaceChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_11hidl_stringEEEEEE
+20    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection5debugERKNS0_11hidl_handleERKNS0_8hidl_vecINS0_11hidl_stringEEE
+24    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection19interfaceDescriptorENSt3__18functionIFvRKNS0_11hidl_stringEEEE
+28    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection12getHashChainENSt3__18functionIFvRKNS0_8hidl_vecINS0_10hidl_arrayIhLj32EJEEEEEEEE
+32    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection21setHALInstrumentationEv
+36    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection11linkToDeathERKNS_2spINS0_20hidl_death_recipientEEEy
+40    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection4pingEv
+44    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection12getDebugInfoENSt3__18functionIFvRKNS_4hidl4base4V1_09DebugInfoEEEE
+48    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection21notifySyspropsChangedEv
+52    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_011IConnection13unlinkToDeathERKNS_2spINS0_20hidl_death_recipientEEE
+56    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation10ConnectionD1Ev
+60    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation10ConnectionD0Ev
+64    (int (*)(...)) _ZN7android8hardware5media10bufferpool4V1_014implementation10Connection5fetchEyjNSt3__18functionIFvNS3_12ResultStatusERKNS3_6BufferEEEE
+96    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation10ConnectionD1Ev
+100    (int (*)(...)) _ZTv0_n12_N7android8hardware5media10bufferpool4V1_014implementation10ConnectionD0Ev
+104    (int (*)(...)) _ZN7android7RefBase10onFirstRefEv
+108    (int (*)(...)) _ZN7android7RefBase15onLastStrongRefEPKv
+112    (int (*)(...)) _ZN7android7RefBase20onIncStrongAttemptedEjPKv
+116    (int (*)(...)) _ZN7android7RefBase13onLastWeakRefEPKv

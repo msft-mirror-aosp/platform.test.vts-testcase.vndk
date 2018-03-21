@@ -61,14 +61,19 @@ Curl_compareheader
 Curl_conn_data_pending
 Curl_connalive
 Curl_conncache_add_conn
+Curl_conncache_bundle_size
 Curl_conncache_close_all_connections
 Curl_conncache_destroy
+Curl_conncache_extract_bundle
+Curl_conncache_extract_oldest
 Curl_conncache_find_bundle
 Curl_conncache_find_first_connection
 Curl_conncache_foreach
 Curl_conncache_init
-Curl_conncache_oldest_idle
 Curl_conncache_remove_conn
+Curl_conncache_return_conn
+Curl_conncache_size
+Curl_conncache_unlock
 Curl_conncontrol
 Curl_connect
 Curl_connect_complete
@@ -172,6 +177,7 @@ Curl_meets_timecondition
 Curl_memdup
 Curl_mime_add_header
 Curl_mime_cleanpart
+Curl_mime_duppart
 Curl_mime_initpart
 Curl_mime_prepare_headers
 Curl_mime_read
@@ -366,6 +372,7 @@ Curl_updateconninfo
 Curl_urldecode
 Curl_verboseconnect
 Curl_version_init
+Curl_vsetopt
 Curl_wait_ms
 Curl_wildcard_dtor
 Curl_wildcard_init
