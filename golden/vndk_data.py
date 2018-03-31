@@ -41,15 +41,31 @@ VNDK_SP = "VNDK-SP"
 # VNDK-SP dependencies that vendor modules cannot directly access.
 VNDK_SP_PRIVATE = "VNDK-SP-Private"
 
-# The name of the data directory for devices with no VNDK version.
-DEFAULT_VNDK_VERSION = "P"
-
 # The ABI dump directories. 64-bit comes before 32-bit in order to sequentially
 # search for longest prefix.
 _ABI_NAMES = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
 
 # The data directory.
 _GOLDEN_DIR = os.path.join("vts", "testcases", "vndk", "golden")
+
+
+def LoadDefaultVndkVersion(data_file_path):
+    """Loads the name of the data directory for devices with no VNDK version.
+
+    Args:
+        data_file_path: The path to VTS data directory.
+
+    Returns:
+        A string, the directory name.
+        None if fails to load the name.
+    """
+    try:
+        with open(os.path.join(data_file_path, _GOLDEN_DIR,
+                               "platform_vndk_version.txt"), "r") as f:
+            return f.read().strip()
+    except IOError:
+        logging.error("Cannot load default VNDK version.")
+        return None
 
 
 def GetAbiDumpDirectory(data_file_path, version, abi_name, abi_bitness):
@@ -71,12 +87,13 @@ def GetAbiDumpDirectory(data_file_path, version, abi_name, abi_bitness):
         logging.warning("Unknown ABI %s.", abi_name)
         return None
 
-    dump_dir = os.path.join(
-        data_file_path,
-        _GOLDEN_DIR,
-        version if version else DEFAULT_VNDK_VERSION,
-        abi_dir,
-        "lib64" if str(abi_bitness) == "64" else "lib")
+    version_dir = (version if version else
+                   LoadDefaultVndkVersion(data_file_path))
+    if not version_dir:
+        return None
+
+    dump_dir = os.path.join(data_file_path, _GOLDEN_DIR, version_dir, abi_dir,
+                            "lib64" if str(abi_bitness) == "64" else "lib")
 
     if not os.path.isdir(dump_dir):
         logging.warning("%s is not a directory.", dump_dir)
@@ -99,11 +116,13 @@ def LoadVndkLibraryLists(data_file_path, version, *tags):
         expressions.
         None if the spreadsheet for the version is not found.
     """
+    version_dir = (version if version else
+                   LoadDefaultVndkVersion(data_file_path))
+    if not version_dir:
+        return None
+
     path = os.path.join(
-        data_file_path,
-        _GOLDEN_DIR,
-        version if version else DEFAULT_VNDK_VERSION,
-        "eligible-list.csv")
+        data_file_path, _GOLDEN_DIR, version_dir, "eligible-list.csv")
     if not os.path.isfile(path):
         logging.warning("Cannot load %s.", path)
         return None
