@@ -249,10 +249,13 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         """Checks ABI compliance of VNDK libraries."""
         primary_abi = self._dut.getCpuAbiList()[0]
         dump_version = (self._vndk_version if self._vndk_version else
-                        vndk_data.DEFAULT_VNDK_VERSION)
+                        vndk_data.LoadDefaultVndkVersion(self.data_file_path))
+        asserts.assertTrue(dump_version,
+                           "Cannot load default VNDK version.")
+
         dump_dir = vndk_data.GetAbiDumpDirectory(
             self.data_file_path,
-            self._vndk_version,
+            dump_version,
             primary_abi,
             self.abi_bitness)
         asserts.assertTrue(
