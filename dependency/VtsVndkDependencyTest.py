@@ -29,6 +29,7 @@ from vts.utils.python.controllers import android_device
 from vts.utils.python.file import target_file_utils
 from vts.utils.python.library import elf_parser
 from vts.utils.python.os import path_utils
+from vts.utils.python.vndk import vndk_utils
 
 
 class VtsVndkDependencyTest(base_test.BaseTestClass):
@@ -47,8 +48,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                            libraries in /system/lib[64].
     """
     _TARGET_VENDOR_DIR = "/vendor"
-    _TARGET_VNDK_SP_DIR_32 = "/system/lib/vndk-sp"
-    _TARGET_VNDK_SP_DIR_64 = "/system/lib64/vndk-sp"
 
     # copied from development/vndk/tools/definition-tool/vndk_definition_tool.py
     _LOW_LEVEL_NDK = [
@@ -172,10 +171,6 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             return True
         return False
 
-    def _getTargetVndkSpDir(self, bitness):
-        """Returns 32/64-bit vndk-sp directory path on target device."""
-        return getattr(self, "_TARGET_VNDK_SP_DIR_" + str(bitness))
-
     def _getSpHalLinkPaths(self, bitness):
         """Returns 32/64-bit same-process HAL link paths"""
         return getattr(self, "_SP_HAL_LINK_PATHS_" + str(bitness))
@@ -236,7 +231,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             List of tuples (path, dependency_names). The library with
             disallowed dependencies and list of the dependencies.
         """
-        vndk_sp_dir = self._getTargetVndkSpDir(bitness)
+        vndk_sp_dir = vndk_utils.GetVndkSpDirectory(bitness,
+                                                    self._dut.vndk_version)
         vndk_sp_paths = target_file_utils.FindFiles(self._shell, vndk_sp_dir,
                                                     "*.so")
         vndk_sp_names = set(
