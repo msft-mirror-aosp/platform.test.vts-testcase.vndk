@@ -144,6 +144,11 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             dump_vtables = parser.ParseVtablesFromString(dump_file.read())
 
         lib_vtables = parser.ParseVtablesFromLibrary(lib_path)
+        # TODO(b/78316564): The dumper doesn't support SHT_ANDROID_RELA.
+        if not lib_vtables and self.run_as_compliance_test:
+            logging.warning("%s: Cannot dump vtables",
+                            os.path.relpath(lib_path, self._temp_dir))
+            return []
         logging.debug("%s: %s", lib_path, lib_vtables)
         diff = []
         for vtable, dump_symbols in dump_vtables.iteritems():
