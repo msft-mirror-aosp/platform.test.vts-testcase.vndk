@@ -21,6 +21,4 @@ include $(call all-subdir-makefiles)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := VtsVndkOpenLibraries
-
-VTS_CONFIG_SRC_DIR := testcases/vndk/open_libraries
 include test/vts/tools/build/Android.host_config.mk
