@@ -1,8 +1,3 @@
-_Z11initHandlerv
-_Z14dummyTagSocketijj
-_Z16dummyUntagSocketi
-_Z18dummyDeleteTagDatajj
-_Z18dummySetCounterSetjj
 _Z23socket_make_sockaddr_unPKciP11sockaddr_unPi
 __ubsan_handle_add_overflow_minimal
 __ubsan_handle_add_overflow_minimal_abort
@@ -131,10 +126,6 @@ property_get_int32
 property_get_int64
 property_list
 property_set
-qtaguid_deleteTagData
-qtaguid_setCounterSet
-qtaguid_tagSocket
-qtaguid_untagSocket
 record_stream_free
 record_stream_get_next
 record_stream_new
