@@ -26,7 +26,7 @@ _ZTVN6google8protobuf7strings15LimitByteSourceE: 6 entries
 
 vtable for google::protobuf::strings::ByteSink
 _ZTVN6google8protobuf7strings8ByteSinkE: 3 entries
-8    (int (*)(...)) _ZN6google8protobuf2io19ZeroCopyInputStreamD1Ev
+8    (int (*)(...)) _ZN6google8protobuf7strings8ByteSink5FlushEv
 12    (int (*)(...)) _ZN6google8protobuf11MessageLiteD0Ev
 20    (int (*)(...)) _ZN6google8protobuf7strings8ByteSink5FlushEv
 
@@ -100,7 +100,7 @@ _ZTVN6google8protobuf11MessageLiteE: 5 entries
 
 vtable for google::protobuf::internal::FieldSkipper
 _ZTVN6google8protobuf8internal12FieldSkipperE: 5 entries
-8    (int (*)(...)) _ZN6google8protobuf2io19ZeroCopyInputStreamD1Ev
+8    (int (*)(...)) _ZN6google8protobuf8internal12FieldSkipper15SkipUnknownEnumEii
 12    (int (*)(...)) _ZN6google8protobuf8internal16FunctionClosure0D0Ev
 16    (int (*)(...)) _ZN6google8protobuf8internal12FieldSkipper9SkipFieldEPNS0_2io16CodedInputStreamEj
 20    (int (*)(...)) _ZN6google8protobuf8internal12FieldSkipper11SkipMessageEPNS0_2io16CodedInputStreamE

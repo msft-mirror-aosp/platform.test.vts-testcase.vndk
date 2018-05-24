@@ -42,7 +42,7 @@ _ZTVN7android12renderscript7FileA3DE: 8 entries
 8    (int (*)(...)) _ZN7android12renderscript10ObjectBase12freeChildrenEv
 12    (int (*)(...)) _ZNK7android12renderscript10ObjectBase8dumpLOGVEPKc
 16    (int (*)(...)) _ZNK7android12renderscript10ObjectBase10preDestroyEv
-20    (int (*)(...)) _ZN7android12renderscript10ObjectBase12freeChildrenEv
+20    (int (*)(...)) _ZN7android12renderscript7FileA3D4loadEPNS_5AssetE
 24    (int (*)(...)) _ZNK7android12renderscript10ObjectBase21callUpdateCacheObjectEPKNS0_7ContextEPv
 28    (int (*)(...)) _ZNK7android12renderscript10ObjectBase10preDestroyEv
 32    (int (*)(...)) _ZN7android12renderscript7FileA3DD2Ev
@@ -53,7 +53,7 @@ vtable for android::renderscript::Font
 _ZTVN7android12renderscript4FontE: 8 entries
 8    (int (*)(...)) _ZN7android12renderscript10ObjectBase12freeChildrenEv
 12    (int (*)(...)) _ZNK7android12renderscript10ObjectBase8dumpLOGVEPKc
-16    (int (*)(...)) _ZNK7android12renderscript10ObjectBase10preDestroyEv
+16    (int (*)(...)) _ZNK7android12SortedVectorINS_16key_value_pair_tIjPNS_12renderscript4Font15CachedGlyphInfoEEEE12do_constructEPvj
 20    (int (*)(...)) _ZN7android12renderscript10ObjectBase12freeChildrenEv
 24    (int (*)(...)) _ZNK7android12renderscript10ObjectBase21callUpdateCacheObjectEPKNS0_7ContextEPv
 28    (int (*)(...)) _ZNK7android12renderscript4Font10preDestroyEv
@@ -165,7 +165,7 @@ _ZTVN7android12renderscript6ScriptE: 7 entries
 28    (int (*)(...)) _ZNK7android12renderscript10ObjectBase10preDestroyEv
 32    (int (*)(...)) _ZN7android12renderscript6ScriptD2Ev
 36    (int (*)(...)) _ZN7android12renderscript6ScriptD0Ev
-60    (int (*)(...)) _ZN7android12renderscript10ObjectBase12freeChildrenEv
+60    (int (*)(...)) _ZN7android12renderscript15ScriptIntrinsic12freeChildrenEv
 
 
 vtable for android::renderscript::ScriptKernelID
