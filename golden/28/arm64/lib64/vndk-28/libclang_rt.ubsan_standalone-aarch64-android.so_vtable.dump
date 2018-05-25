@@ -1,7 +1,7 @@
 vtable for __cxxabiv1::__shim_type_info
 _ZTVN10__cxxabiv116__shim_type_infoE: 5 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv116__shim_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv116__shim_type_infoD1Ev
 24    (int (*)(...)) _ZN10__cxxabiv116__shim_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -10,7 +10,7 @@ _ZTVN10__cxxabiv116__shim_type_infoE: 5 entries
 vtable for __cxxabiv1::__fundamental_type_info
 _ZTVN10__cxxabiv123__fundamental_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv123__fundamental_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv123__fundamental_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv123__fundamental_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -20,7 +20,7 @@ _ZTVN10__cxxabiv123__fundamental_type_infoE: 6 entries
 vtable for __cxxabiv1::__array_type_info
 _ZTVN10__cxxabiv117__array_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv117__array_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv117__array_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv117__array_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -30,7 +30,7 @@ _ZTVN10__cxxabiv117__array_type_infoE: 6 entries
 vtable for __cxxabiv1::__function_type_info
 _ZTVN10__cxxabiv120__function_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv120__function_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv120__function_type_infoD1Ev
 24    (int (*)(...)) _ZN10__cxxabiv120__function_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -40,7 +40,7 @@ _ZTVN10__cxxabiv120__function_type_infoE: 6 entries
 vtable for __cxxabiv1::__enum_type_info
 _ZTVN10__cxxabiv116__enum_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv116__enum_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv116__enum_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv116__enum_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -50,7 +50,7 @@ _ZTVN10__cxxabiv116__enum_type_infoE: 6 entries
 vtable for __cxxabiv1::__class_type_info
 _ZTVN10__cxxabiv117__class_type_infoE: 9 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv117__class_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv117__class_type_infoD1Ev
 24    (int (*)(...)) _ZN10__cxxabiv117__class_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -63,7 +63,7 @@ _ZTVN10__cxxabiv117__class_type_infoE: 9 entries
 vtable for __cxxabiv1::__si_class_type_info
 _ZTVN10__cxxabiv120__si_class_type_infoE: 9 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv120__si_class_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv120__si_class_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv120__si_class_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -76,7 +76,7 @@ _ZTVN10__cxxabiv120__si_class_type_infoE: 9 entries
 vtable for __cxxabiv1::__vmi_class_type_info
 _ZTVN10__cxxabiv121__vmi_class_type_infoE: 9 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv121__vmi_class_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv121__vmi_class_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv121__vmi_class_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -99,7 +99,7 @@ _ZTVN10__cxxabiv117__pbase_type_infoE: 6 entries
 vtable for __cxxabiv1::__pointer_type_info
 _ZTVN10__cxxabiv119__pointer_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv119__pointer_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv119__pointer_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv119__pointer_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
@@ -109,7 +109,7 @@ _ZTVN10__cxxabiv119__pointer_type_infoE: 6 entries
 vtable for __cxxabiv1::__pointer_to_member_type_info
 _ZTVN10__cxxabiv129__pointer_to_member_type_infoE: 6 entries
 8    (int (*)(...)) _ZTIN10__cxxabiv129__pointer_to_member_type_infoE
-16    (int (*)(...)) _ZN10__cxxabiv117__pbase_type_infoD2Ev
+16    (int (*)(...)) _ZN10__cxxabiv129__pointer_to_member_type_infoD2Ev
 24    (int (*)(...)) _ZN10__cxxabiv129__pointer_to_member_type_infoD0Ev
 32    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop1Ev
 40    (int (*)(...)) _ZNK10__cxxabiv116__shim_type_info5noop2Ev
