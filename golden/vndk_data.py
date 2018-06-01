@@ -68,12 +68,14 @@ def LoadDefaultVndkVersion(data_file_path):
         return None
 
 
-def GetAbiDumpDirectory(data_file_path, version, abi_name, abi_bitness):
+def GetAbiDumpDirectory(data_file_path, version, binder_bitness, abi_name,
+                        abi_bitness):
     """Returns the VNDK dump directory on host.
 
     Args:
         data_file_path: The path to VTS data directory.
         version: A string, the VNDK version.
+        binder_bitness: A string or an integer, 32 or 64.
         abi_name: A string, the ABI of the library dump.
         abi_bitness: A string or an integer, 32 or 64.
 
@@ -92,8 +94,10 @@ def GetAbiDumpDirectory(data_file_path, version, abi_name, abi_bitness):
     if not version_dir:
         return None
 
-    dump_dir = os.path.join(data_file_path, _GOLDEN_DIR, version_dir, abi_dir,
-                            "lib64" if str(abi_bitness) == "64" else "lib")
+    dump_dir = os.path.join(
+        data_file_path, _GOLDEN_DIR, version_dir,
+        "binder64" if str(binder_bitness) == "64" else "binder32",
+        abi_dir, "lib64" if str(abi_bitness) == "64" else "lib")
 
     if not os.path.isdir(dump_dir):
         logging.warning("%s is not a directory.", dump_dir)
