@@ -253,6 +253,9 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
     def testAbiCompatibility(self):
         """Checks ABI compliance of VNDK libraries."""
         primary_abi = self._dut.getCpuAbiList()[0]
+        binder_bitness = self._dut.getBinderBitness()
+        asserts.assertTrue(binder_bitness,
+                           "Cannot determine binder bitness.")
         dump_version = (self._vndk_version if self._vndk_version else
                         vndk_data.LoadDefaultVndkVersion(self.data_file_path))
         asserts.assertTrue(dump_version,
@@ -261,6 +264,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         dump_dir = vndk_data.GetAbiDumpDirectory(
             self.data_file_path,
             dump_version,
+            binder_bitness,
             primary_abi,
             self.abi_bitness)
         asserts.assertTrue(

@@ -325,10 +325,12 @@ def main():
     if not build_top_dir:
         sys.exit("env var ANDROID_BUILD_TOP is not set")
 
-    (vndk_version,
+    (binder_32_bit,
+     vndk_version,
      target_arch,
      target_2nd_arch) = GetBuildVariables(
         build_top_dir, abs_path=False, vars=(
+            "BINDER32BIT",
             "PLATFORM_VNDK_VERSION",
             "TARGET_ARCH",
             "TARGET_2ND_ARCH"))
@@ -357,6 +359,7 @@ def main():
     print("DUMPER_DIR=" + dumper_dir)
 
     output_dir = os.path.join((args.output if args.output else vndk_version),
+                              ("binder32" if binder_32_bit else "binder64"),
                               target_arch)
     print("OUTPUT_DIR=" + output_dir)
 
