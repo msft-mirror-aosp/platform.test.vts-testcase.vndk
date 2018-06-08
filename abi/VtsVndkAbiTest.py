@@ -25,6 +25,7 @@ from vts.runners.host import base_test
 from vts.runners.host import const
 from vts.runners.host import keys
 from vts.runners.host import test_runner
+from vts.testcases.vndk.golden import vndk_data
 from vts.utils.python.controllers import android_device
 from vts.utils.python.library import elf_parser
 from vts.utils.python.library import vtable_parser
@@ -60,11 +61,12 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         _vndk_version: String, the VNDK version supported by the device.
         data_file_path: The path to VTS data directory.
     """
+    _ODM_LIB_DIR_32 = "/odm/lib"
+    _ODM_LIB_DIR_64 = "/odm/lib64"
     _VENDOR_LIB_DIR_32 = "/vendor/lib"
     _VENDOR_LIB_DIR_64 = "/vendor/lib64"
     _SYSTEM_LIB_DIR_32 = "/system/lib"
     _SYSTEM_LIB_DIR_64 = "/system/lib64"
-    _DUMP_DIR = os.path.join("vts", "testcases", "vndk", "golden")
 
     def setUpClass(self):
         """Initializes data file path, device, and temporary directory."""
@@ -72,8 +74,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         self.getUserParams(required_params)
         self._dut = self.android_devices[0]
         self._temp_dir = tempfile.mkdtemp()
-        self._vndk_version = "current"
-        logging.info("VNDK version: %s", self._vndk_version)
+        self._vndk_version = self._dut.vndk_version
 
     def tearDownClass(self):
         """Deletes the temporary directory."""
@@ -143,6 +144,11 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             dump_vtables = parser.ParseVtablesFromString(dump_file.read())
 
         lib_vtables = parser.ParseVtablesFromLibrary(lib_path)
+        # TODO(b/78316564): The dumper doesn't support SHT_ANDROID_RELA.
+        if not lib_vtables and self.run_as_compliance_test:
+            logging.warning("%s: Cannot dump vtables",
+                            os.path.relpath(lib_path, self._temp_dir))
+            return []
         logging.debug("%s: %s", lib_path, lib_vtables)
         diff = []
         for vtable, dump_symbols in dump_vtables.iteritems():
@@ -161,12 +167,16 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                                  ",".join(str(x) for x in lib_inv_vtable[sym])))
         return diff
 
-    def _ScanLibDirs(self, dump_dir, lib_dirs):
+    def _ScanLibDirs(self, dump_dir, lib_dirs, dump_version):
         """Compares dump files with libraries copied from device.
 
         Args:
             dump_dir: The directory containing dump files.
             lib_dirs: The list of directories containing libraries.
+            dump_version: The VNDK version of the dump files. If the device has
+                          no VNDK version or has extension in vendor partition,
+                          this method compares the unversioned VNDK directories
+                          with the dump directories of the given version.
 
         Returns:
             An integer, number of incompatible libraries.
@@ -188,7 +198,15 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             lib_paths[lib_name] = None
 
         for lib_dir in lib_dirs:
-            for lib_name, lib_path in _IterateFiles(lib_dir):
+            for lib_rel_path, lib_path in _IterateFiles(lib_dir):
+                try:
+                    vndk_dir = next(x for x in ("vndk", "vndk-sp") if
+                                    lib_rel_path.startswith(x + os.path.sep))
+                    lib_name = lib_rel_path.replace(
+                        vndk_dir, vndk_dir + "-" + dump_version, 1)
+                except StopIteration:
+                    lib_name = lib_rel_path
+
                 if lib_name in lib_paths and not lib_paths[lib_name]:
                     lib_paths[lib_name] = lib_path
 
@@ -234,23 +252,38 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
 
     def testAbiCompatibility(self):
         """Checks ABI compliance of VNDK libraries."""
-        abi_dirs = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
-        try:
-            abi_dir = next(x for x in abi_dirs if self.abi_name.startswith(x))
-        except StopIteration:
-            asserts.fail("Unknown ABI: " + self.abi_name)
+        primary_abi = self._dut.getCpuAbiList()[0]
+        binder_bitness = self._dut.getBinderBitness()
+        asserts.assertTrue(binder_bitness,
+                           "Cannot determine binder bitness.")
+        dump_version = (self._vndk_version if self._vndk_version else
+                        vndk_data.LoadDefaultVndkVersion(self.data_file_path))
+        asserts.assertTrue(dump_version,
+                           "Cannot load default VNDK version.")
 
-        dump_dir = os.path.join(
-            self.data_file_path, self._DUMP_DIR, self._vndk_version, abi_dir)
+        dump_dir = vndk_data.GetAbiDumpDirectory(
+            self.data_file_path,
+            dump_version,
+            binder_bitness,
+            primary_abi,
+            self.abi_bitness)
         asserts.assertTrue(
-            os.path.isdir(dump_dir),
-            "No dump files for VNDK version " + self._vndk_version)
+            dump_dir,
+            "No dump files. version: %s ABI: %s bitness: %s" % (
+                self._vndk_version, primary_abi, self.abi_bitness))
+        logging.info("dump dir: %s", dump_dir)
 
+        odm_lib_dir = os.path.join(
+            self._temp_dir, "odm_lib_dir_" + self.abi_bitness)
         vendor_lib_dir = os.path.join(
             self._temp_dir, "vendor_lib_dir_" + self.abi_bitness)
         system_lib_dir = os.path.join(
             self._temp_dir, "system_lib_dir_" + self.abi_bitness)
-        logging.info("host lib dir: %s %s", vendor_lib_dir, system_lib_dir)
+        logging.info("host lib dir: %s %s %s",
+                     odm_lib_dir, vendor_lib_dir, system_lib_dir)
+        self._PullOrCreateDir(
+            getattr(self, "_ODM_LIB_DIR_" + self.abi_bitness),
+            odm_lib_dir)
         self._PullOrCreateDir(
             getattr(self, "_VENDOR_LIB_DIR_" + self.abi_bitness),
             vendor_lib_dir)
@@ -259,7 +292,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             system_lib_dir)
 
         error_count = self._ScanLibDirs(
-            dump_dir, [vendor_lib_dir, system_lib_dir])
+            dump_dir, [odm_lib_dir, vendor_lib_dir, system_lib_dir], dump_version)
         asserts.assertEqual(error_count, 0,
                             "Total number of errors: " + str(error_count))
 
