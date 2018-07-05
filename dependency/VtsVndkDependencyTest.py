@@ -108,11 +108,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         sp_hal_strings = vndk_lists[0]
         self._sp_hal = [re.compile(x) for x in sp_hal_strings]
-        (self._ll_ndk,
-         self._vndk,
-         self._vndk_sp) = (
-            set(path_utils.TargetBaseName(path) for path in vndk_list)
-            for vndk_list in vndk_lists[1:])
+        (self._ll_ndk, self._vndk, self._vndk_sp) = vndk_lists[1:]
 
         logging.debug("LL_NDK: %s", self._ll_ndk)
         logging.debug("SP_HAL: %s", sp_hal_strings)
