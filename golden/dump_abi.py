@@ -16,7 +16,6 @@
 #
 
 import argparse
-import csv
 import importlib
 import os
 import subprocess
@@ -194,39 +193,43 @@ def DumpVtables(lib_path, dump_path, dumper_dir, include_symbols):
     return dump_string
 
 
-def _LoadLibraryNamesFromCsv(csv_file):
-    """Loads VNDK and VNDK-SP library names from an eligible list.
+def _LoadLibraryNamesFromTxt(vndk_lib_list_file):
+    """Loads VNDK and VNDK-SP library names from a VNDK library list.
 
     Args:
-        csv_file: A file object of eligible-list.csv.
+        vndk_lib_list_file: A file object of
+                            build/make/target/product/vndk/current.txt
 
     Returns:
         A list of strings, the VNDK and VNDK-SP library names with vndk/vndk-sp
         directory prefixes.
     """
-    lib_names = []
-    # Skip header
-    next(csv_file)
-    reader = csv.reader(csv_file)
-    for cells in reader:
-        if cells[1] not in ("VNDK", "VNDK-SP"):
-            continue
-        lib_name = os.path.normpath(cells[0]).replace("/system/${LIB}/", "", 1)
-        if not (lib_name.startswith("vndk") or lib_name.startswith("vndk-sp")):
-            continue
-        lib_name = lib_name.replace("${VNDK_VER}", "{VNDK_VER}")
-        lib_names.append(lib_name)
-    return lib_names
+    tags = (
+        ("VNDK-core: ", len("VNDK-core: "), False),
+        ("VNDK-SP: ", len("VNDK-SP: "), False),
+        ("VNDK-private: ", len("VNDK-private: "), True),
+        ("VNDK-SP-private: ", len("VNDK-SP-private: "), True),
+    )
+    lib_names = set()
+    lib_names_exclude = set()
+    for line in vndk_lib_list_file:
+        for tag, tag_len, is_exclude in tags:
+            if line.startswith(tag):
+                lib_name = line[tag_len:].strip()
+                if is_exclude:
+                    lib_names_exclude.add(lib_name)
+                else:
+                    lib_names.add(lib_name)
+    return sorted(lib_names - lib_names_exclude)
 
 
 def _LoadLibraryNames(file_names):
     """Loads library names from files.
 
-    Each element in the input list can be a .so file, a text file, or a .csv
-    file. The returned list consists of:
+    Each element in the input list can be a .so file or a .txt file. The
+    returned list consists of:
     - The .so file names in the input list.
-    - The non-empty lines in the text files.
-    - The libraries tagged with VNDK or VNDK-SP in the CSV.
+    - The libraries tagged with VNDK-core or VNDK-SP in the .txt file.
 
     Args:
         file_names: A list of strings, the library or text file names.
@@ -239,23 +242,38 @@ def _LoadLibraryNames(file_names):
     for file_name in file_names:
         if file_name.endswith(".so"):
             lib_names.append(file_name)
-        elif file_name.endswith(".csv"):
-            with open(file_name, "r") as csv_file:
-                lib_names.extend(_LoadLibraryNamesFromCsv(csv_file))
         else:
-            with open(file_name, "r") as lib_list:
-                lib_names.extend(line.strip() for line in lib_list
-                                 if line.strip())
+            with open(file_name, "r") as txt_file:
+                lib_names.extend(_LoadLibraryNamesFromTxt(txt_file))
     return lib_names
 
 
-def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
+def _CollectLibraryPaths(root_dirs):
+    """Collect all files under root directories and build a name-to-path dict.
+
+    Args:
+        root_dirs: The paths of root directories to be scanned.
+
+    Returns:
+        A dict that maps file names to file paths.
+    """
+    paths = {}
+    for root_dir in root_dirs:
+        for base_dir, dirnames, filenames in os.walk(root_dir):
+            for filename in filenames:
+                paths[filename] = os.path.join(base_dir, filename)
+    return paths
+
+
+def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
+            dumper_dir):
     """Generates dump from libraries.
 
     Args:
         output_dir: The output directory of dump files.
         lib_names: The names of the libraries to dump.
         lib_dir: The path to the directory containing the libraries to dump.
+        vndk_version: The VNDK version for shared libraries to dump.
         object_dir: The path to the directory containing intermediate objects.
         dumper_dir: The path to the directory containing the vtable dumper
                     executable and library.
@@ -271,10 +289,24 @@ def DumpAbi(output_dir, lib_names, lib_dir, object_dir, dumper_dir):
             ar_name + ".a")
         static_symbols.update(ar_parser.ListGlobalSymbols(ar_path))
 
+    lib_paths = _CollectLibraryPaths([
+        os.path.join(lib_dir, "vndk-" + vndk_version),
+        os.path.join(lib_dir, "vndk-sp-" + vndk_version)])
+
     missing_libs = []
     dump_dir = os.path.join(output_dir, os.path.basename(lib_dir))
     for lib_name in lib_names:
-        lib_path = os.path.join(lib_dir, lib_name)
+        try:
+            lib_path = lib_paths[lib_name]
+        except KeyError:
+            lib_path = os.path.join(lib_dir, "**", lib_name)
+            print(lib_path)
+            missing_libs.append(lib_path)
+            print("Warning: Not found")
+            print("")
+            continue
+
+        lib_name = os.path.relpath(lib_path, lib_dir)
         symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
         vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
         print(lib_path)
@@ -303,12 +335,8 @@ def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("file", nargs="*",
                             help="the libraries to dump. Each file can be "
-                                 ".so, text, or .csv. The text file contains "
-                                 "a list of paths. The CSV file follows the"
-                                 "format of eligible list output from VNDK"
-                                 "definition tool. {VNDK_VER} in the library"
-                                 "paths is replaced with "
-                                 "\"-\" + PLATFORM_VNDK_VERSION.")
+                                 ".so or .txt. The text file can be found at "
+                                 "build/make/target/product/vndk/current.txt.")
     arg_parser.add_argument("--dumper-dir", "-d", action="store",
                             help="the path to the directory containing "
                                  "bin/vndk-vtable-dumper.")
@@ -325,10 +353,12 @@ def main():
     if not build_top_dir:
         sys.exit("env var ANDROID_BUILD_TOP is not set")
 
-    (vndk_version,
+    (binder_32_bit,
+     vndk_version,
      target_arch,
      target_2nd_arch) = GetBuildVariables(
         build_top_dir, abs_path=False, vars=(
+            "BINDER32BIT",
             "PLATFORM_VNDK_VERSION",
             "TARGET_ARCH",
             "TARGET_2ND_ARCH"))
@@ -357,17 +387,17 @@ def main():
     print("DUMPER_DIR=" + dumper_dir)
 
     output_dir = os.path.join((args.output if args.output else vndk_version),
+                              ("binder32" if binder_32_bit else "binder64"),
                               target_arch)
     print("OUTPUT_DIR=" + output_dir)
 
-    lib_names = [name.format(VNDK_VER="-" + vndk_version) for
-                 name in _LoadLibraryNames(args.file)]
+    lib_names = _LoadLibraryNames(args.file)
 
-    missing_libs = DumpAbi(output_dir, lib_names, target_lib_dir,
+    missing_libs = DumpAbi(output_dir, lib_names, target_lib_dir, vndk_version,
                            target_obj_dir, dumper_dir)
     if target_2nd_arch:
         missing_libs += DumpAbi(output_dir, lib_names, target_2nd_lib_dir,
-                                target_2nd_obj_dir, dumper_dir)
+                                vndk_version, target_2nd_obj_dir, dumper_dir)
 
     if missing_libs:
         print("Warning: Could not find libraries:")
