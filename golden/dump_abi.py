@@ -16,11 +16,13 @@
 #
 
 import argparse
+import gzip
 import importlib
 import os
 import subprocess
 import sys
 
+from google.protobuf import text_format
 
 class ExternalModules(object):
     """This class imports modules dynamically and keeps them as attributes.
@@ -34,19 +36,25 @@ class ExternalModules(object):
         vtable_parser: The vtable_parser module.
     """
     @classmethod
-    def ImportParsers(cls, import_dir):
+    def ImportParsers(cls, build_top_dir):
         """Imports elf_parser and vtable_parser.
 
         Args:
-            import_dir: The directory containing vts.utils.python.library.*.
+            build_top_dir: Value of the environment variable ANDROID_BUILD_TOP.
         """
-        sys.path.append(import_dir)
+        sys.path.append(os.path.join(build_top_dir, 'test'))
+        sys.path.append(os.path.join(build_top_dir, 'test', 'vts-testcase'))
+        sys.path.append(os.path.join(build_top_dir, 'development', 'vndk',
+                                     'tools', 'header-checker'))
         cls.ar_parser = importlib.import_module(
             "vts.utils.python.library.ar_parser")
         cls.elf_parser = importlib.import_module(
             "vts.utils.python.library.elf_parser")
         cls.vtable_parser = importlib.import_module(
             "vts.utils.python.library.vtable_parser")
+        cls.VndkAbiDump = importlib.import_module(
+            "vndk.proto.VndkAbiDump_pb2")
+        cls.AbiDump = importlib.import_module("proto.abi_dump_pb2")
 
 
 def _CreateAndWrite(path, data):
@@ -193,6 +201,102 @@ def DumpVtables(lib_path, dump_path, dumper_dir, include_symbols):
     return dump_string
 
 
+def DumpVtablesFromLsdump(lib_lsdump_path, dump_path, include_symbols,
+                          abi_bitness):
+    """Dump vtables from a lsdump to a dump file.
+
+    The dump file is a vts.proto.VndkAbiDump_pb2.AbiDump() message.
+
+    Args:
+        lib_lsdump_path: The path to the (gzipped) lsdump file.
+        dump_path: The path to the output text file.
+        include_symbols: A set of strings. A vtable is written to the dump file
+                         only if its symbol is in the set.
+        abi_bitness: A string describing the bitness of the target abi. The
+                     value should be '32' or '64'.
+
+    Returns:
+        A string which is the content written to the dump file.
+
+    Raises:
+        IOError if fails to write to the dump file.
+    """
+    if os.path.isfile(lib_lsdump_path + '.gz'):
+        with gzip.open(lib_lsdump_path + '.gz', 'rb') as f:
+            lsdump_content = f.read()
+    elif os.path.isfile(lib_lsdump_path):
+        with open(lib_lsdump_path, 'rb') as f:
+            lsdump_content = f.read()
+    else:
+        return ''
+
+    vtable_dump = ParseVtablesFromLsdump(lsdump_content, abi_bitness)
+    vtables = [vtable for vtable in vtable_dump.vtables
+               if vtable.name in include_symbols]
+    del vtable_dump.vtables[:]
+    vtable_dump.vtables.extend(vtables)
+    vtable_dump_text = text_format.MessageToString(vtable_dump)
+    if vtable_dump_text:
+        _CreateAndWrite(dump_path, vtable_dump_text)
+    return vtable_dump_text
+
+def ParseVtablesFromLsdump(abi_dump, abi_bitness):
+    """Parses all vtables from a .lsdump abi-dump.
+
+    Args:
+        abi_dump: A lsdump output by header-abi-dumper/header-abi-linker.
+        abi_bitness: A string describing the bitness of the target abi. The
+                     value should be '32' or '64'.
+
+    Returns:
+        A vts.proto.VndkAbiDump_pb2.AbiDump() message.
+    """
+    VndkAbiDump = ExternalModules.VndkAbiDump
+    AbiDump = ExternalModules.AbiDump
+
+    tu = AbiDump.TranslationUnit()
+    try:
+        text_format.Merge(abi_dump, tu)
+    except:
+        print ('Warning: Cannot parse lsdump')
+        return VndkAbiDump.AbiDump()
+
+    assert(abi_bitness in ['32', '64'])
+    offset_unit = {'32': 4, '64': 8}[abi_bitness]
+    vtable_names = {e.name for e in tu.elf_objects if e.name.startswith('_ZTV')}
+
+    # TODO: Not sure if UnusedFunctionPointer does anything or not
+    vtable_function_kind = [
+        AbiDump.VTableComponent.FunctionPointer,
+        AbiDump.VTableComponent.CompleteDtorPointer,
+        AbiDump.VTableComponent.DeletingDtorPointer,
+        AbiDump.VTableComponent.UnusedFunctionPointer,
+    ]
+
+    vtable_dump = VndkAbiDump.AbiDump()
+    for record_type in tu.record_types:
+        name = record_type.tag_info.unique_id
+        vtable_name = '_ZTV' + name[len('_ZTS'):]
+        if vtable_name not in vtable_names:
+            continue
+        vtable = VndkAbiDump.VTable()
+        vtable.name = vtable_name
+        vtable.demangled_name = record_type.type_info.name
+        for idx, vtable_component in enumerate(
+                record_type.vtable_layout.vtable_components):
+            offset = offset_unit * idx
+            if vtable_component.kind not in vtable_function_kind:
+                continue
+            vtable_entry = vtable.vtable_entries.add()
+            vtable_entry.offset = offset
+            vtable_entry.name = vtable_component.mangled_component_name
+            vtable_entry.demangled_name = ""
+            vtable_entry.is_inlined = vtable_component.is_inlined
+            vtable_entry.is_pure = vtable_component.is_pure
+        if len(vtable.vtable_entries) > 0:
+            vtable_dump.vtables.extend([vtable])
+    return vtable_dump
+
 def _LoadLibraryNamesFromTxt(vndk_lib_list_file):
     """Loads VNDK and VNDK-SP library names from a VNDK library list.
 
@@ -266,7 +370,7 @@ def _CollectLibraryPaths(root_dirs):
 
 
 def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
-            dumper_dir):
+            dumper_dir, lsdump_path):
     """Generates dump from libraries.
 
     Args:
@@ -277,6 +381,7 @@ def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
         object_dir: The path to the directory containing intermediate objects.
         dumper_dir: The path to the directory containing the vtable dumper
                     executable and library.
+        lsdump_path: The path to the directory containing lsdumps.
 
     Returns:
         A list of strings, the paths to the libraries not found in lib_dir.
@@ -294,7 +399,12 @@ def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
         os.path.join(lib_dir, "vndk-sp-" + vndk_version)])
 
     missing_libs = []
-    dump_dir = os.path.join(output_dir, os.path.basename(lib_dir))
+    lib_bitness = os.path.basename(lib_dir)
+    assert lib_bitness in ['lib', 'lib64'], (
+           'Unexpected lib_dir: {} lib_dir should end with '
+           '"lib" or "lib64"'.format(lib_dir))
+    dump_dir = os.path.join(output_dir, lib_bitness)
+    abi_bitness = {'lib': '32', 'lib64': '64'}[lib_bitness]
     for lib_name in lib_names:
         try:
             lib_path = lib_paths[lib_name]
@@ -306,9 +416,12 @@ def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
             print("")
             continue
 
-        lib_name = os.path.relpath(lib_path, lib_dir)
-        symbol_dump_path = os.path.join(dump_dir, lib_name + "_symbol.dump")
-        vtable_dump_path = os.path.join(dump_dir, lib_name + "_vtable.dump")
+        lib_pathname = os.path.relpath(lib_path, lib_dir)
+        symbol_dump_path = os.path.join(dump_dir, lib_pathname + "_symbol.dump")
+        vtable_dump_path = os.path.join(dump_dir, lib_pathname + "_vtable.dump")
+        abi_dump_path = os.path.join(dump_dir, lib_pathname + ".abi.dump")
+        lib_lsdump_path = os.path.join(lsdump_path, lib_name + '.lsdump')
+
         print(lib_path)
         if not os.path.isfile(lib_path):
             missing_libs.append(lib_path)
@@ -320,14 +433,29 @@ def DumpAbi(output_dir, lib_names, lib_dir, vndk_version, object_dir,
             print("Output: " + symbol_dump_path)
         else:
             print("No symbols")
+        symbols = set(symbols)
         vtables = DumpVtables(
-            lib_path, vtable_dump_path, dumper_dir, set(symbols))
+            lib_path, vtable_dump_path, dumper_dir, symbols)
         if vtables:
             print("Output: " + vtable_dump_path)
         else:
             print("No vtables")
+        lsdump_vtables = DumpVtablesFromLsdump(
+                lib_lsdump_path, abi_dump_path,  symbols, abi_bitness)
+        if lsdump_vtables:
+            print("Output: " + abi_dump_path)
+        else:
+            print("No lsdump vtables")
+        if vtables and not lsdump_vtables:
+            print ('Warning: lsdump_vtables empty but vtables not empty')
         print("")
     return missing_libs
+
+
+def GetTargetArchDir(target_arch, target_arch_variant):
+    if target_arch == target_arch_variant:
+        return target_arch
+    return '{}_{}'.format(target_arch, target_arch_variant)
 
 
 def main():
@@ -355,13 +483,19 @@ def main():
 
     (binder_32_bit,
      vndk_version,
+     target_is_64_bit,
      target_arch,
-     target_2nd_arch) = GetBuildVariables(
+     target_arch_variant,
+     target_2nd_arch,
+     target_2nd_arch_variant) = GetBuildVariables(
         build_top_dir, abs_path=False, vars=(
             "BINDER32BIT",
             "PLATFORM_VNDK_VERSION",
+            "TARGET_IS_64_BIT",
             "TARGET_ARCH",
-            "TARGET_2ND_ARCH"))
+            "TARGET_ARCH_VARIANT",
+            "TARGET_2ND_ARCH",
+            "TARGET_2ND_ARCH_VARIANT"))
 
     (target_lib_dir,
      target_obj_dir,
@@ -373,9 +507,20 @@ def main():
             "2ND_TARGET_OUT_SHARED_LIBRARIES",
             "2ND_TARGET_OUT_INTERMEDIATES"))
 
+    binder_bitness = '32' if binder_32_bit else '64'
+
     # Import elf_parser and vtable_parser
-    ExternalModules.ImportParsers(args.import_path if args.import_path else
-                                  os.path.join(build_top_dir, "test"))
+    ExternalModules.ImportParsers(build_top_dir)
+
+    # Generate vtable dump from lsdump in TOP/prebuilts/abi-dumps
+    lsdump_path_base = os.path.join(build_top_dir, 'prebuilts', 'abi-dumps',
+                                    'vndk', vndk_version, binder_bitness)
+    lsdump_path = os.path.join(lsdump_path_base,
+            GetTargetArchDir(target_arch, target_arch_variant),
+            'source-based')
+    lsdump_path_2nd = os.path.join(lsdump_path_base,
+            GetTargetArchDir(target_2nd_arch, target_2nd_arch_variant),
+            'source-based')
 
     # Find vtable dumper
     if args.dumper_dir:
@@ -394,10 +539,11 @@ def main():
     lib_names = _LoadLibraryNames(args.file)
 
     missing_libs = DumpAbi(output_dir, lib_names, target_lib_dir, vndk_version,
-                           target_obj_dir, dumper_dir)
+                           target_obj_dir, dumper_dir, lsdump_path)
     if target_2nd_arch:
         missing_libs += DumpAbi(output_dir, lib_names, target_2nd_lib_dir,
-                                vndk_version, target_2nd_obj_dir, dumper_dir)
+                                vndk_version, target_2nd_obj_dir, dumper_dir,
+                                lsdump_path_2nd)
 
     if missing_libs:
         print("Warning: Could not find libraries:")
