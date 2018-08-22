@@ -27,12 +27,12 @@ message VTable {
 }
 
 message Symbol {
-  enum Kind {
+  enum ElfSymbolBinding {
     UNDEFINED = 0;
     GLOBAL = 1;
     WEAK = 2;
   }
-  optional Kind kind = 1 [default = UNDEFINED];
+  optional ElfSymbolBinding binding = 1 [default = UNDEFINED];
   optional string name = 2;
 }
 

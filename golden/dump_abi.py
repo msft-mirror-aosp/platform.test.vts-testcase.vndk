@@ -289,9 +289,9 @@ def DumpAbiFromLsdump(lib_lsdump_path, dump_path, global_symbols, weak_symbols,
 
     for symbol in abi_dump.symbols:
         if symbol.name in global_symbols:
-            symbol.kind = VndkAbiDump.Symbol.GLOBAL
+            symbol.binding = VndkAbiDump.Symbol.GLOBAL
         elif symbol.name in weak_symbols:
-            symbol.kind = VndkAbiDump.Symbol.WEAK
+            symbol.binding = VndkAbiDump.Symbol.WEAK
         else:
             print('Warning: Cannot resolve symbol binding {}'
                   .format(symbol.name))
