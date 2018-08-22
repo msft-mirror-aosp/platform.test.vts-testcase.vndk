@@ -190,7 +190,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         with open(dump_path, "r") as dump_file:
             text_format.Merge(dump_file.read(), abi_dump)
         global_symbols = {e.name for e in abi_dump.symbols
-                          if e.kind == VndkAbiDump.Symbol.GLOBAL}
+                          if e.binding == VndkAbiDump.Symbol.GLOBAL}
 
         parser = vtable_parser.VtableParser(
             os.path.join(self.data_file_path, "host"))
