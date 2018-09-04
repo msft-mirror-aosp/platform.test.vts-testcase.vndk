@@ -18,6 +18,7 @@
 import argparse
 import gzip
 import importlib
+import json
 import os
 import platform
 import subprocess
@@ -54,6 +55,21 @@ class ExternalModules(object):
             "vndk.proto.VndkAbiDump_pb2")
         cls.AbiDump = importlib.import_module("proto.abi_dump_pb2")
         cls.build_top_dir = build_top_dir
+
+
+class AttrDict(dict):
+    """A dictionary with attribute accessors."""
+
+    def __getattr__(self, key):
+        """Returns self[key]."""
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
+
+    def __setattr__(self, key, value):
+        """Assigns value to self[key]."""
+        self[key] = value
 
 
 class DumpAbiError(Exception):
@@ -167,31 +183,43 @@ def OpenTextOrGzipped(file_name):
 
 
 def ReadLsdump(lsdump_path):
-    """Returns a AbiDump_pb2.TranslationUnit() object from file content.
+    """Returns a AbiDump_pb2.TranslationUnit() like object from file content.
 
     Args:
         lsdump_path: The path to the (gzipped) lsdump file.
 
     Returns:
-        An AbiDump_pb2.TranslationUnit().
+        An AbiDump_pb2.TranslationUnit() object if lsdump_path contains protobuf
+        text format message.
+        An AttrDict() object if lsdump_path contains json format message.
 
     Raises:
-        DumpAbiError if lsdump_path doesn't exist.
-        DumpAbiError if fails to decode protobuf message.
-        IOError if file operations fails.
+        DumpAbiError if fails to open and read lsdump_path.
+        DumpAbiError if fails to decode json or protobuf message.
     """
     AbiDump = ExternalModules.AbiDump
 
     if not os.path.isfile(lsdump_path):
         raise DumpAbiError('No such file: ' + lsdump_path)
 
-    with OpenTextOrGzipped(lsdump_path) as f:
-        lsdump_binary = _EncodeLsdump(f.read())
-        try:
-            tu = AbiDump.TranslationUnit.FromString(lsdump_binary)
-        except message.DecodeError as e:
-            raise DumpAbiError(e)
-    return tu
+    try:
+        with OpenTextOrGzipped(lsdump_path) as f:
+            lsdump_raw_bytes = f.read()
+    except IOError as e:
+        raise DumpAbiError(e)
+
+    try:
+        return json.loads(lsdump_raw_bytes, object_hook=AttrDict)
+    except ValueError as e1:
+        pass
+
+    try:
+        lsdump_binary = _EncodeLsdump(lsdump_raw_bytes)
+        return AbiDump.TranslationUnit.FromString(lsdump_binary)
+    except (DumpAbiError, message.DecodeError) as e2:
+        pass
+
+    raise DumpAbiError('Json: {}\nProtobuf: {}'.format(e1, e2))
 
 
 def DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness):
@@ -213,10 +241,7 @@ def DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness):
     """
     VndkAbiDump = ExternalModules.VndkAbiDump
 
-    try:
-        tu = ReadLsdump(lib_lsdump_path)
-    except IOError as e:
-        raise DumpAbiError(e)
+    tu = ReadLsdump(lib_lsdump_path)
 
     abi_dump = VndkAbiDump.AbiDump()
 
@@ -282,7 +307,7 @@ def ParseVtablesFromLsdump(abi_dump, tu, abi_bitness):
                 record_type.vtable_layout.vtable_components):
             if vtable_component.kind not in vtable_entry_kind:
                 print('Warning: Unexpected vtable_component kind\n{}'
-                      .format(text_format.MessageToString(vtable_component)))
+                      .format(vtable_component))
                 continue
             vtable_entry = vtable.vtable_entries.add()
             vtable_entry.offset = idx * offset_unit
@@ -482,8 +507,7 @@ def DumpAbi(output_dir, lib_names, lsdump_path, abi_bitness):
 
         print(lib_lsdump_path)
         try:
-            abi_dump = DumpAbiFromLsdump(lib_lsdump_path, dump_path,
-                                         abi_bitness)
+            DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness)
         except DumpAbiError as e:
             missing_dumps.append(lib_name)
             print(e)
