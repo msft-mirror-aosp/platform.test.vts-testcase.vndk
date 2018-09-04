@@ -19,6 +19,7 @@ import argparse
 import gzip
 import importlib
 import os
+import platform
 import subprocess
 import sys
 
@@ -78,8 +79,14 @@ def _EncodeLsdump(msg):
     Returns:
         A string containing the encoded result.
     """
+    host_system_name = platform.system()
+    if host_system_name == 'Linux':
+        host_type = 'linux-x86_64'
+    else:
+        host_type = 'darwin-x86_64'
     cmd = [
-        'protoc',
+        os.path.join(ExternalModules.build_top_dir, 'prebuilts', 'tools',
+                     host_type, 'protoc', 'bin', 'protoc'),
         '-I/',
         '--encode=abi_dump.TranslationUnit',
         os.path.join(ExternalModules.build_top_dir, 'development', 'vndk',
