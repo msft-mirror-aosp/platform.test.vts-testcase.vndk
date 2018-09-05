@@ -32,6 +32,7 @@ from vts.testcases.vndk.proto import VndkAbiDump_pb2 as VndkAbiDump
 from vts.utils.python.controllers import android_device
 from vts.utils.python.library import elf_parser
 from vts.utils.python.library import vtable_parser
+from vts.utils.python.library.vtable import vtable_dumper
 
 
 def _IterateFiles(root_dir):
@@ -171,115 +172,118 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         return diff
 
     def _DiffAbi(self, dump_path, lib_path):
-        """Checks if a library includes all vtable entries in a dump.
+        """Checks if a library includes all symbols and vtable entries in a dump.
 
         Args:
             dump_path: The path to the dump file.
             lib_path: The path to the library.
 
         Returns:
-            A list of tuples (VTABLE, OFFSET, EXPECTED_SYMBOL, ACTUAL_SYMBOL).
-            ACTUAL_SYMBOL can be "missing" or symbol name.
+            A tuple of ([string], [(VTABLE, OFFSET, EXPECTED_SYMBOL, ACTUAL)]).
+            The first element of the tuple contains a list of strings, the
+            global symbols that are in the dump but not in the library.
+            The second element of the tuple contains a list of vtable
+            differences. ACTUAL can be 'missing', a list of symbol names or an
+            ELF virtual address.
 
         Raises:
             IOError if fails to load the dump.
             text_format.ParseError if fails to parse dump message.
-            vtable_parser.VtableError if fails to load the library.
+            vtable_dumper.VtableError if fails to dump vtable from the library.
+            elf_parser.ElfError if fails to load the library.
         """
+        # Read reference dump and collect global symbols.
         abi_dump = VndkAbiDump.AbiDump()
-        with open(dump_path, "r") as dump_file:
+        with open(dump_path, 'r') as dump_file:
             text_format.Merge(dump_file.read(), abi_dump)
         global_symbols = {e.name for e in abi_dump.symbols
                           if e.binding == VndkAbiDump.Symbol.GLOBAL}
-
-        parser = vtable_parser.VtableParser(
-            os.path.join(self.data_file_path, "host"))
-        lib_vtables = parser.ParseVtablesFromLibrary(lib_path)
-        # TODO(b/78316564): The dumper doesn't support SHT_ANDROID_RELA.
-        if not lib_vtables and self.run_as_compliance_test:
-            logging.warning("%s: Cannot dump vtables",
-                            os.path.relpath(lib_path, self._temp_dir))
-            return []
 
         vtable_not_function_kind = [
             VndkAbiDump.VTableEntry.VCALLOFFSET,
             VndkAbiDump.VTableEntry.VBASEOFFSET,
             VndkAbiDump.VTableEntry.OFFSETTOTOP,
+            VndkAbiDump.VTableEntry.RTTI,
         ]
         vtable_function_kind = [
             VndkAbiDump.VTableEntry.VFUNCPOINTER,
             VndkAbiDump.VTableEntry.DELETINGDTORPOINTER,
             VndkAbiDump.VTableEntry.COMPLETEDTORPOINTER,
         ]
-        logging.debug("%s: %s", lib_path, lib_vtables)
-        diff = []
+        # Dump symbols and vtables from library.
+        with vtable_dumper.VtableDumper(lib_path) as dumper:
+            lib_vtables = {vtable.name: vtable
+                           for vtable in dumper.DumpVtables()}
+            lib_symbols = dumper.ListGlobalDynamicSymbols(include_weak=True)
+
+        symbols_diff = sorted(global_symbols.difference(lib_symbols))
+
+        lib_rel_path = os.path.relpath(lib_path, self._temp_dir)
+        logging.debug('vtables of %s:\n%s', lib_rel_path,
+                      '\n\n'.join(str(vtable)
+                                  for _, vtable in lib_vtables.items()))
+        vtables_diff = []
         for vtable in abi_dump.vtables:
+            # If vtable isn't a global symbol, then skip this vtable.
             if vtable.name not in global_symbols:
                 continue
 
-            def Logdiff(offset, expected, actual):
-                diff.append((vtable.name, str(offset),
-                             str(expected), str(actual)))
-
+            # Collect vtable entries from library dump.
             if vtable.name in lib_vtables:
-                lib_vtable = {off: sym for off, sym in lib_vtables[vtable.name]}
+                lib_vtable = {entry.offset: entry
+                              for entry in lib_vtables[vtable.name].entries}
             else:
                 lib_vtable = dict()
+            # Compare reference dump with library dump
             for vtable_entry in vtable.vtable_entries:
                 off = vtable_entry.offset
                 sym = vtable_entry.name
-                kind_name = VndkAbiDump.VTableEntry.Kind.Name(vtable_entry.kind)
+
+                def _LogDiff(expected, actual):
+                    """Helper function to log diffs."""
+                    vtables_diff.append((vtable.name, str(off),
+                                         str(expected), str(actual)))
+
+                # Entry kind mustn't be UNDEFINED
+                if vtable_entry.kind == VndkAbiDump.VTableEntry.UNDEFINED:
+                    logging.warning("%s: Unexpected VTableEntry kind %s",
+                                    dump_path,
+                                    text_format.MessageToString(vtable_entry))
+                    continue
+                # Handle non-function vtable entries
                 if vtable_entry.kind in vtable_not_function_kind:
-                    if off in lib_vtable:
-                        Logdiff(off, kind_name, lib_vtable[off])
-                elif vtable_entry.kind in vtable_function_kind:
-                    if sym in global_symbols:
-                        # Only check GLOBAL symbols.
-                        if off in lib_vtable:
-                            if sym != lib_vtable[off]:
-                                if vtable_entry.kind == (VndkAbiDump.VTableEntry
-                                                         .COMPLETEDTORPOINTER):
-                                    # TODO b/111524444
-                                    # D1 destructor may alias D2 destructor in
-                                    # library vtable dump. This is difficult to
-                                    # check if vtable-dumper doesn't output the
-                                    # correct symbol.
-                                    # Skip this for now.
-                                    logging.warning(
-                                        "%s: Destructor symbol difference "
-                                        "in %s expected %s actual %s",
-                                        os.path.relpath(lib_path,
-                                                        self._temp_dir),
-                                        vtable.name, sym, lib_vtable[off])
-                                else:
-                                    Logdiff(off, sym, lib_vtable[off])
-                        else:
-                            Logdiff(off, sym, "missing")
-                    elif vtable_entry.is_pure:
+                    # We don't check RTTI, vcalloffset, vbaseoffset and
+                    # offsettotop.
+                    continue
+                # Else vtable entry must be in vtable_function_kind
+                if sym not in global_symbols:
+                    if vtable_entry.is_pure and off not in lib_vtable:
                         # Itanium cxx abi doesn't specify pure virtual vtable
                         # entry's behaviour. However we can still do some
                         # checks based on compiler behaviour.
                         # Even though we don't check weak symbols, we can still
                         # issue a warning when a pure virtual function pointer
                         # is missing.
-                        if off in lib_vtable:
-                            # We only check the existence of pure virtual entry.
-                            pass
-                        else:
-                            logging.warning("%s: Expected pure virtual "
-                                            "function in %s offset %s",
-                                            os.path.relpath(lib_path,
-                                                            self._temp_dir),
-                                            vtable.name,
-                                            off)
-                elif vtable_entry.kind == VndkAbiDump.VTableEntry.RTTI:
-                    # We don't care about RTTI
-                    pass
-                else:
-                    logging.warning("%s: Unexpected VTableEntry kind %s",
-                                    dump_path,
-                                    text_format.MessageToString(vtable_entry))
-        return diff
+                        logging.warning("%s: Expected pure virtual "
+                                        "function in %s offset %s",
+                                        lib_rel_path,
+                                        vtable.name,
+                                        off)
+                    continue
+                # Else vtable entry is a global symbol
+                if off not in lib_vtable:
+                    _LogDiff(sym, 'missing')
+                    continue
+                # Else a vtable entry exists at lib_vtable[off]
+                entry = lib_vtable[off]
+                if not entry.names:
+                    _LogDiff(sym, hex(entry.value).rstrip('L'))
+                    continue
+                if sym not in entry.names:
+                    _LogDiff(sym, entry.names)
+                    continue
+            # End of: for vtable_entry in vtable.vtable_entries:
+        return symbols_diff, vtables_diff
 
     def _ScanLibDirs(self, dump_dir, lib_dirs, dump_version):
         """Compares dump files with libraries copied from device.
@@ -337,7 +341,8 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             has_exception = False
             missing_symbols = []
             vtable_diff = []
-            abi_diff = []
+            abi_symbols_diff = []
+            abi_vtables_diff = []
             # Compare symbols
             if lib_name in symbol_dumps:
                 try:
@@ -358,8 +363,9 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             if lib_name in abi_dumps:
                 try:
                     abi_diff = self._DiffAbi(abi_dumps[lib_name], lib_path)
+                    abi_symbols_diff, abi_vtables_diff = abi_diff
                 except (IOError, text_format.ParseError,
-                        vtable_parser.VtableError):
+                        vtable_dumper.VtableError):
                     logging.exception("%s: Cannot diff abidump", rel_path)
                     has_exception = True
 
@@ -371,12 +377,16 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                               "vtable symbol expected actual\n%s",
                               rel_path,
                               "\n".join(" ".join(x) for x in vtable_diff))
-            if abi_diff:
-                logging.error("%s: Abidump Difference:\n"
+            if abi_symbols_diff:
+                logging.error("%s: AbiDump Missing Symbols:\n%s",
+                              rel_path, "\n".join(abi_symbols_diff))
+            if abi_vtables_diff:
+                logging.error("%s: Abidump Vtable Difference:\n"
                               "vtable offset expected actual\n%s",
                               rel_path,
-                              "\n".join(" ".join(e) for e in abi_diff))
-            if has_exception or missing_symbols or vtable_diff or abi_diff:
+                              "\n".join(" ".join(e) for e in abi_vtables_diff))
+            if (has_exception or missing_symbols or vtable_diff
+                    or abi_symbols_diff or abi_vtables_diff):
                 error_count += 1
             else:
                 logging.info("%s: Pass", rel_path)
