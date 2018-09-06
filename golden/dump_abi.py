@@ -18,7 +18,9 @@
 import argparse
 import gzip
 import importlib
+import json
 import os
+import platform
 import subprocess
 import sys
 
@@ -55,12 +57,35 @@ class ExternalModules(object):
         cls.build_top_dir = build_top_dir
 
 
+class AttrDict(dict):
+    """A dictionary with attribute accessors."""
+
+    def __getattr__(self, key):
+        """Returns self[key]."""
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
+
+    def __setattr__(self, key, value):
+        """Assigns value to self[key]."""
+        self[key] = value
+
+
+class DumpAbiError(Exception):
+    """The exception raised by DumpAbi."""
+    pass
+
+
 def _CreateAndWrite(path, data):
     """Creates directories on a file path and writes data to it.
 
     Args:
         path: The path to the file.
         data: The data to write.
+
+    Raises:
+        IOError if file operations fails.
     """
     dir_name = os.path.dirname(path)
     if dir_name and not os.path.exists(dir_name):
@@ -77,16 +102,27 @@ def _EncodeLsdump(msg):
 
     Returns:
         A string containing the encoded result.
+
+    Raises:
+        DumpAbiError if encoding fails.
     """
+    host_system_name = platform.system()
+    if host_system_name == 'Linux':
+        host_type = 'linux-x86_64'
+    else:
+        host_type = 'darwin-x86_64'
     cmd = [
-        'protoc',
+        os.path.join(ExternalModules.build_top_dir, 'prebuilts', 'tools',
+                     host_type, 'protoc', 'bin', 'protoc'),
         '-I/',
         '--encode=abi_dump.TranslationUnit',
         os.path.join(ExternalModules.build_top_dir, 'development', 'vndk',
                      'tools', 'header-checker', 'proto', 'abi_dump.proto'),
     ]
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate(msg)
+    if proc.returncode:
+        raise DumpAbiError(stderr)
     return stdout
 
 
@@ -129,6 +165,63 @@ def GetBuildVariables(build_top_dir, abs_path, vars):
     return [line.split("=", 1)[1].strip("'") for line in stdout.splitlines()]
 
 
+def OpenTextOrGzipped(file_name):
+    """Opens a file that is either in plaintext or gzipped format.
+
+    If file_name ends with '.gz' then return gzip.open(file_name, 'rb'),
+    else return open(file_name, 'rb').
+
+    Args:
+        file_name: The file name to open.
+
+    Returns:
+        A file object.
+    """
+    if file_name.endswith('.gz'):
+        return gzip.open(file_name, 'rb')
+    return open(file_name, 'rb')
+
+
+def ReadLsdump(lsdump_path):
+    """Returns a AbiDump_pb2.TranslationUnit() like object from file content.
+
+    Args:
+        lsdump_path: The path to the (gzipped) lsdump file.
+
+    Returns:
+        An AbiDump_pb2.TranslationUnit() object if lsdump_path contains protobuf
+        text format message.
+        An AttrDict() object if lsdump_path contains json format message.
+
+    Raises:
+        DumpAbiError if fails to open and read lsdump_path.
+        DumpAbiError if fails to decode json or protobuf message.
+    """
+    AbiDump = ExternalModules.AbiDump
+
+    if not os.path.isfile(lsdump_path):
+        raise DumpAbiError('No such file: ' + lsdump_path)
+
+    try:
+        with OpenTextOrGzipped(lsdump_path) as f:
+            lsdump_raw_bytes = f.read()
+    except IOError as e:
+        raise DumpAbiError(e)
+
+    try:
+        return json.loads(lsdump_raw_bytes, object_hook=AttrDict)
+    except ValueError as e1:
+        pass
+
+    try:
+        lsdump_binary = _EncodeLsdump(lsdump_raw_bytes)
+        return AbiDump.TranslationUnit.FromString(lsdump_binary)
+    except (DumpAbiError, message.DecodeError) as e2:
+        pass
+
+    raise DumpAbiError('Json: {}\nProtobuf: {}'.format(e1, e2))
+
+
 def DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness):
     """Dump abi from a lsdump to a dump file.
 
@@ -142,37 +235,25 @@ def DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness):
 
     Returns:
         A string which is the content written to the dump file.
-        None if no dump file is created.
 
     Raises:
-        IOError if fails to write to the dump file.
+        DumpAbiError if fails to create the dump file.
     """
     VndkAbiDump = ExternalModules.VndkAbiDump
-    AbiDump = ExternalModules.AbiDump
 
-    if os.path.isfile(lib_lsdump_path + '.gz'):
-        with gzip.open(lib_lsdump_path + '.gz', 'rb') as f:
-            lsdump_content = f.read()
-    elif os.path.isfile(lib_lsdump_path):
-        with open(lib_lsdump_path, 'rb') as f:
-            lsdump_content = f.read()
-    else:
-        print('Warning: Missing library lsdump.')
-        return None
-
-    lsdump_binary = _EncodeLsdump(lsdump_content)
-    try:
-        tu = AbiDump.TranslationUnit.FromString(lsdump_binary)
-    except message.DecodeError:
-        print('Warning: Cannot parse lsdump.')
-        return None
+    tu = ReadLsdump(lib_lsdump_path)
 
     abi_dump = VndkAbiDump.AbiDump()
+
     ParseVtablesFromLsdump(abi_dump, tu, abi_bitness)
     ParseSymbolsFromLsdump(abi_dump, tu)
 
     abi_dump_text = text_format.MessageToString(abi_dump)
-    _CreateAndWrite(dump_path, abi_dump_text)
+    try:
+        _CreateAndWrite(dump_path, abi_dump_text)
+    except IOError as e:
+        raise DumpAbiError(e)
+
     return abi_dump_text
 
 
@@ -226,7 +307,7 @@ def ParseVtablesFromLsdump(abi_dump, tu, abi_bitness):
                 record_type.vtable_layout.vtable_components):
             if vtable_component.kind not in vtable_entry_kind:
                 print('Warning: Unexpected vtable_component kind\n{}'
-                      .format(text_format.MessageToString(vtable_component)))
+                      .format(vtable_component))
                 continue
             vtable_entry = vtable.vtable_entries.add()
             vtable_entry.offset = idx * offset_unit
@@ -267,6 +348,7 @@ def ParseSymbolsFromLsdump(abi_dump, tu):
     }
     binding = {elf_object.name: symbol_binding[elf_object.binding]
                for elf_object in tu.elf_objects}
+
     binding.update({elf_function.name: symbol_binding[elf_function.binding]
                     for elf_function in tu.elf_functions})
 
@@ -420,14 +502,17 @@ def DumpAbi(output_dir, lib_names, lsdump_path, abi_bitness):
     for lib_name in lib_names:
         dump_path = os.path.join(output_dir, lib_name + '.abi.dump')
         lib_lsdump_path = os.path.join(lsdump_path, lib_name + '.lsdump')
+        if os.path.isfile(lib_lsdump_path + '.gz'):
+            lib_lsdump_path += '.gz'
 
         print(lib_lsdump_path)
-        abi_dump = DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness)
-        if abi_dump is not None:
-            print('Output: ' + dump_path)
-        else:
+        try:
+            DumpAbiFromLsdump(lib_lsdump_path, dump_path, abi_bitness)
+        except DumpAbiError as e:
             missing_dumps.append(lib_name)
-            print('No abidump created.')
+            print(e)
+        else:
+            print('Output: ' + dump_path)
         print('')
     return missing_dumps
 
