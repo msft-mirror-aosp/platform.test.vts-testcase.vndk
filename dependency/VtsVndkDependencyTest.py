@@ -65,6 +65,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         "/odm/{LIB}/hw", "/odm/{LIB}/egl", "/odm/{LIB}",
         "/vendor/{LIB}/hw", "/vendor/{LIB}/egl", "/vendor/{LIB}"
     ]
+    _DEFAULT_PROGRAM_INTERPRETERS = [
+        "/system/bin/linker", "/system/bin/linker64"
+    ]
 
     class ElfObject(object):
         """Contains dependencies of an ELF file on target device.
@@ -120,6 +123,40 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         logging.info("Delete %s", self._temp_dir)
         shutil.rmtree(self._temp_dir)
 
+    def _IsElfObjectForAp(self, elf, target_path, abi_list):
+        """Checks whether an ELF object is for application processor.
+
+        Args:
+            elf: The object of elf_parser.ElfParser.
+            target_path: The path to the ELF file on target.
+            abi_list: A list of strings, the ABIs of the application processor.
+
+        Returns:
+            A boolean, whether the ELF object is for application processor.
+        """
+        if not any(elf.MatchCpuAbi(x) for x in abi_list):
+            logging.debug("%s does not match the ABI", target_path)
+            return False
+
+        # b/115567177 Skip an ELF file if it meets the following 3 conditions:
+        # The ELF type is executable.
+        if not elf.IsExecutable():
+            return True
+
+        # It requires special program interpreter.
+        interp = elf.GetProgramInterpreter()
+        if not interp or interp in self._DEFAULT_PROGRAM_INTERPRETERS:
+            return True
+
+        # It does not have execute permission in the file system.
+        permissions = target_file_utils.GetPermission(target_path,
+                                                      self._dut.shell)
+        if target_file_utils.IsExecutable(permissions):
+            return True
+
+        logging.debug("%s is not for application processor", target_path)
+        return False
+
     def _LoadElfObjects(self, host_dir, target_dir, abi_list,
                         elf_error_handler):
         """Scans a host directory recursively and loads all ELF files in it.
@@ -146,11 +183,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             except elf_parser.ElfError:
                 logging.debug("%s is not an ELF file", target_path)
                 continue
-            if not any(elf.MatchCpuAbi(x) for x in abi_list):
-                logging.debug("%s does not match the ABI", target_path)
-                elf.Close()
-                continue
             try:
+                if not self._IsElfObjectForAp(elf, target_path, abi_list):
+                    continue
                 deps = elf.ListDependencies()
             except elf_parser.ElfError as e:
                 elf_error_handler(target_path, e)
