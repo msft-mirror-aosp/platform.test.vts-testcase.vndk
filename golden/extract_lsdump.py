@@ -70,10 +70,10 @@ def _ConsumeOffset(tok, beg=0):
 def _ConsumeCallOffset(tok):
     """Consumes a <call-offset> in a thunk symbol."""
     if tok[:1] == 'h':
-        lhs, rhs = ConsumeOffset(tok, 1)
+        lhs, rhs = _ConsumeOffset(tok, 1)
     elif tok[:1] == 'v':
-        lhs, rhs = ConsumeOffset(tok, 1)
-        lhs2, rhs = ConsumeOffset(rhs)
+        lhs, rhs = _ConsumeOffset(tok, 1)
+        lhs2, rhs = _ConsumeOffset(rhs)
         if lhs and lhs2:
             lhs = lhs + lhs2
         else:
