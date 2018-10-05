@@ -28,7 +28,6 @@ from vts.runners.host import keys
 from vts.runners.host import test_runner
 from vts.testcases.vndk.golden import vndk_data
 from vts.utils.python.library import elf_parser
-from vts.utils.python.library import vtable_parser
 from vts.utils.python.library.vtable import vtable_dumper
 
 
@@ -98,75 +97,6 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             return
         logging.info("adb pull %s %s", target_dir, host_dir)
         self._dut.adb.pull(target_dir, host_dir)
-
-    def _DiffSymbols(self, dump_path, lib_path):
-        """Checks if a library includes all symbols in a dump.
-
-        Args:
-            dump_path: The path to the dump file containing list of symbols.
-            lib_path: The path to the library.
-
-        Returns:
-            A list of strings, the global symbols that are in the dump but not
-            in the library.
-
-        Raises:
-            IOError if fails to load the dump.
-            elf_parser.ElfError if fails to load the library.
-        """
-        with open(dump_path, "r") as dump_file:
-            dump_symbols = set(line.strip() for line in dump_file
-                               if line.strip())
-        parser = elf_parser.ElfParser(lib_path)
-        try:
-            lib_symbols = parser.ListGlobalDynamicSymbols(include_weak=True)
-        finally:
-            parser.Close()
-        return sorted(dump_symbols.difference(lib_symbols))
-
-    def _DiffVtables(self, dump_path, lib_path):
-        """Checks if a library includes all vtable entries in a dump.
-
-        Args:
-            dump_path: The path to the dump file containing vtables.
-            lib_path: The path to the library.
-
-        Returns:
-            A list of tuples (VTABLE, SYMBOL, EXPECTED_OFFSET, ACTUAL_OFFSET).
-            ACTUAL_OFFSET can be "missing" or numbers separated by comma.
-
-        Raises:
-            IOError if fails to load the dump.
-            vtable_parser.VtableError if fails to load the library.
-        """
-        parser = vtable_parser.VtableParser(
-            os.path.join(self.data_file_path, "host"))
-        with open(dump_path, "r") as dump_file:
-            dump_vtables = parser.ParseVtablesFromString(dump_file.read())
-
-        lib_vtables = parser.ParseVtablesFromLibrary(lib_path)
-        # TODO(b/78316564): The dumper doesn't support SHT_ANDROID_RELA.
-        if not lib_vtables and self.run_as_compliance_test:
-            logging.warning("%s: Cannot dump vtables",
-                            os.path.relpath(lib_path, self._temp_dir))
-            return []
-        logging.debug("%s: %s", lib_path, lib_vtables)
-        diff = []
-        for vtable, dump_symbols in dump_vtables.iteritems():
-            lib_inv_vtable = dict()
-            if vtable in lib_vtables:
-                for off, sym in lib_vtables[vtable]:
-                    if sym not in lib_inv_vtable:
-                        lib_inv_vtable[sym] = [off]
-                    else:
-                        lib_inv_vtable[sym].append(off)
-            for off, sym in dump_symbols:
-                if sym not in lib_inv_vtable:
-                    diff.append((vtable, sym, str(off), "missing"))
-                elif off not in lib_inv_vtable[sym]:
-                    diff.append((vtable, sym, str(off),
-                                 ",".join(str(x) for x in lib_inv_vtable[sym])))
-        return diff
 
     @staticmethod
     def _LoadGlobalSymbolsFromDump(dump_obj):
@@ -334,20 +264,12 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             An integer, number of incompatible libraries.
         """
         error_count = 0
-        symbol_dumps = dict()
-        vtable_dumps = dict()
-        abi_dumps = dict()
+        dump_paths = dict()
         lib_paths = dict()
         for dump_rel_path, dump_path in _IterateFiles(dump_dir):
-            if dump_rel_path.endswith("_symbol.dump"):
-                lib_name = dump_rel_path.rpartition("_symbol.dump")[0]
-                symbol_dumps[lib_name] = dump_path
-            elif dump_rel_path.endswith("_vtable.dump"):
-                lib_name = dump_rel_path.rpartition("_vtable.dump")[0]
-                vtable_dumps[lib_name] = dump_path
-            elif dump_rel_path.endswith(".dump"):
+            if dump_rel_path.endswith(".dump"):
                 lib_name = dump_rel_path.rpartition(".dump")[0]
-                abi_dumps[lib_name] = dump_path
+                dump_paths[lib_name] = dump_path
             else:
                 logging.warning("Unknown dump: %s", dump_path)
                 continue
@@ -375,38 +297,20 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
             has_exception = False
             missing_symbols = []
             vtable_diff = []
-            abi_symbols_diff = []
-            abi_vtables_diff = []
-            # Compare symbols
-            if lib_name in symbol_dumps:
+
+            if lib_name in dump_paths:
                 try:
-                    missing_symbols = self._DiffSymbols(
-                        symbol_dumps[lib_name], lib_path)
-                except (IOError, elf_parser.ElfError):
-                    logging.exception("%s: Cannot diff symbols", rel_path)
-                    has_exception = True
-            # Compare vtables
-            if lib_name in vtable_dumps:
-                try:
-                    vtable_diff = self._DiffVtables(
-                        vtable_dumps[lib_name], lib_path)
-                except (IOError, vtable_parser.VtableError):
-                    logging.exception("%s: Cannot diff vtables", rel_path)
-                    has_exception = True
-            # Compare abidump (lsdump)
-            if lib_name in abi_dumps:
-                try:
-                    with open(abi_dumps[lib_name], "r") as dump_file:
+                    with open(dump_paths[lib_name], "r") as dump_file:
                         dump_obj = json.load(dump_file)
                     with vtable_dumper.VtableDumper(lib_path) as dumper:
-                        abi_symbols_diff = self._DiffElfSymbols(
+                        missing_symbols = self._DiffElfSymbols(
                             dump_obj, dumper)
-                        abi_vtables_diff = self._DiffVtableComponents(
+                        vtable_diff = self._DiffVtableComponents(
                             dump_obj, dumper)
                 except (IOError,
                         elf_parser.ElfError,
                         vtable_dumper.VtableError) as e:
-                    logging.exception("%s: Cannot diff abidump", rel_path)
+                    logging.exception("%s: Cannot diff ABI", rel_path)
                     has_exception = True
 
             if missing_symbols:
@@ -414,19 +318,10 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                               rel_path, "\n".join(missing_symbols))
             if vtable_diff:
                 logging.error("%s: Vtable Difference:\n"
-                              "vtable symbol expected actual\n%s",
-                              rel_path,
-                              "\n".join(" ".join(x) for x in vtable_diff))
-            if abi_symbols_diff:
-                logging.error("%s: Missing Symbols:\n%s",
-                              rel_path, "\n".join(abi_symbols_diff))
-            if abi_vtables_diff:
-                logging.error("%s: Vtable Difference:\n"
                               "vtable offset expected actual\n%s",
                               rel_path,
-                              "\n".join(" ".join(e) for e in abi_vtables_diff))
-            if (has_exception or missing_symbols or vtable_diff
-                    or abi_symbols_diff or abi_vtables_diff):
+                              "\n".join(" ".join(e) for e in vtable_diff))
+            if (has_exception or missing_symbols or vtable_diff):
                 error_count += 1
             else:
                 logging.info("%s: Pass", rel_path)
