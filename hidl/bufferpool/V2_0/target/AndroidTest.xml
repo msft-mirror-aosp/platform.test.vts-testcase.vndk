@@ -13,7 +13,7 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-<configuration description="Config for VTS VtsVndkHidlBufferpoolV1_0Target test cases">
+<configuration description="Config for VTS VtsVndkHidlBufferpoolV2_0Target test cases">
     <option name="config-descriptor:metadata" key="plan" value="vts-library" />
     <target_preparer class="com.android.compatibility.common.tradefed.targetprep.VtsFilePusher">
         <option name="abort-on-push-failure" value="false"/>
@@ -21,11 +21,11 @@
     </target_preparer>
     <multi_target_preparer class="com.android.tradefed.targetprep.VtsPythonVirtualenvPreparer" />
     <test class="com.android.tradefed.testtype.VtsMultiDeviceTest">
-        <option name="test-module-name" value="VtsVndkHidlBufferpoolV1_0Target"/>
-        <option name="binary-test-source" value="_32bit::DATA/nativetest/VtsVndkHidlBufferpoolV1_0TargetSingleTest/VtsVndkHidlBufferpoolV1_0TargetSingleTest"/>
-        <option name="binary-test-source" value="_64bit::DATA/nativetest64/VtsVndkHidlBufferpoolV1_0TargetSingleTest/VtsVndkHidlBufferpoolV1_0TargetSingleTest"/>
-        <option name="binary-test-source" value="_32bit::DATA/nativetest/VtsVndkHidlBufferpoolV1_0TargetMultiTest/VtsVndkHidlBufferpoolV1_0TargetMultiTest"/>
-        <option name="binary-test-source" value="_64bit::DATA/nativetest64/VtsVndkHidlBufferpoolV1_0TargetMultiTest/VtsVndkHidlBufferpoolV1_0TargetMultiTest"/>
+        <option name="test-module-name" value="VtsVndkHidlBufferpoolV2_0Target"/>
+        <option name="binary-test-source" value="_32bit::DATA/nativetest/VtsVndkHidlBufferpoolV2_0TargetSingleTest/VtsVndkHidlBufferpoolV2_0TargetSingleTest"/>
+        <option name="binary-test-source" value="_64bit::DATA/nativetest64/VtsVndkHidlBufferpoolV2_0TargetSingleTest/VtsVndkHidlBufferpoolV2_0TargetSingleTest"/>
+        <option name="binary-test-source" value="_32bit::DATA/nativetest/VtsVndkHidlBufferpoolV2_0TargetMultiTest/VtsVndkHidlBufferpoolV2_0TargetMultiTest"/>
+        <option name="binary-test-source" value="_64bit::DATA/nativetest64/VtsVndkHidlBufferpoolV2_0TargetMultiTest/VtsVndkHidlBufferpoolV2_0TargetMultiTest"/>
         <option name="binary-test-type" value="gtest_binary_test"/>
         <option name="test-timeout" value="1m"/>
     </test>
