@@ -240,9 +240,9 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                           with the dump directories of the given version.
 
         Returns:
-            An integer, number of incompatible libraries.
+            A list of strings, the incompatible libraries.
         """
-        error_count = 0
+        error_list = []
         dump_paths = dict()
         lib_paths = dict()
         for parent_dir, dump_name in utils.iterate_files(dump_dir):
@@ -292,10 +292,10 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                               rel_path,
                               "\n".join(" ".join(e) for e in vtable_diff))
             if (has_exception or missing_symbols or vtable_diff):
-                error_count += 1
+                error_list.append(rel_path)
             else:
                 logging.info("%s: Pass", rel_path)
-        return error_count
+        return error_list
 
     @staticmethod
     def _GetLinkerSearchIndex(target_path):
@@ -343,9 +343,13 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
         for target_dir, host_dir in zip(target_dirs, host_dirs):
             self._PullOrCreateDir(target_dir, host_dir)
 
-        error_count = self._ScanLibDirs(dump_dir, host_dirs, dump_version)
-        asserts.assertEqual(error_count, 0,
-                            "Total number of errors: " + str(error_count))
+        assert_lines = self._ScanLibDirs(dump_dir, host_dirs, dump_version)
+        if assert_lines:
+            error_count = len(assert_lines)
+            if error_count > 20:
+                assert_lines = assert_lines[:20] + ["..."]
+            assert_lines.append("Total number of errors: " + str(error_count))
+            asserts.fail("\n".join(assert_lines))
 
 
 if __name__ == "__main__":
