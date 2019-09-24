@@ -129,8 +129,13 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
             error_lines = ["%s %s %s" % (pid, cmds[pid], libs)
                            for pid, libs in deps.iteritems()]
             logging.error("pid command libraries\n%s", "\n".join(error_lines))
-            asserts.fail("Number of vendor processes using system libraries: " +
-                         str(len(deps)))
+
+            assert_lines = ["pid command libraries"] + error_lines[:20]
+            if len(deps) > 20:
+                assert_lines.append("...")
+            assert_lines.append("Number of vendor processes using system "
+                                "libraries: " + str(len(deps)))
+            asserts.fail("\n".join(assert_lines))
 
 
 if __name__ == "__main__":
