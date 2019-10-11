@@ -154,8 +154,47 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         if target_file_utils.IsExecutable(permissions):
             return True
 
-        logging.debug("%s is not for application processor", target_path)
         return False
+
+    def _IsElfObjectBuiltForAndroid(self, elf, target_path):
+        """Checks whether an ELF object is built for Android.
+
+        Some ELF objects in vendor partition require special program
+        interpreters. Such executable files have .interp sections, but shared
+        libraries don't. As there is no reliable way to identify those
+        libraries. This method checks .note.android.ident section which is
+        created by Android build system.
+
+        Args:
+            elf: The object of elf_parser.ElfParser.
+            target_path: The path to the ELF file on target.
+
+        Returns:
+            A boolean, whether the ELF object is built for Android.
+        """
+        # b/133399940 Skip an ELF file if it does not have .note.android.ident
+        # section and meets one of the following conditions:
+        if elf.HasAndroidIdent():
+            return True
+
+        # It's in the specific directory and is a shared library.
+        if (target_path.startswith("/vendor/arib/lib/") and
+                ".so" in target_path and
+                elf.IsSharedObject()):
+            return False
+
+        # It's in the specific directory, requires special program interpreter,
+        # and is executable.
+        if target_path.startswith("/vendor/arib/bin/"):
+            interp = elf.GetProgramInterpreter()
+            if interp and interp not in self._DEFAULT_PROGRAM_INTERPRETERS:
+                permissions = target_file_utils.GetPermission(target_path,
+                                                              self._dut.shell)
+                if (elf.IsExecutable() or
+                        target_file_utils.IsExecutable(permissions)):
+                    return False
+
+        return True
 
     def _LoadElfObjects(self, host_dir, target_dir, abi_list,
                         elf_error_handler):
@@ -185,7 +224,13 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                 continue
             try:
                 if not self._IsElfObjectForAp(elf, target_path, abi_list):
+                    logging.info("%s is not for application processor",
+                                 target_path)
                     continue
+                if not self._IsElfObjectBuiltForAndroid(elf, target_path):
+                    logging.info("%s is not built for Android", target_path)
+                    continue
+
                 deps = elf.ListDependencies()
             except elf_parser.ElfError as e:
                 elf_error_handler(target_path, e)
@@ -406,18 +451,26 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         if self._dut.is64Bit:
             dep_errors.extend(self._TestElfDependency(64, objs))
 
+        assert_lines = []
         if read_errors:
-            error_lines = ("%s: %s" % (x[0], x[1]) for x in read_errors)
+            error_lines = ["%s: %s" % (x[0], x[1]) for x in read_errors]
             logging.error("%d read errors:\n%s",
                           len(read_errors), "\n".join(error_lines))
+            assert_lines.extend(error_lines[:20])
+
         if dep_errors:
-            error_lines = ("%s: %s" % (x[0], ", ".join(x[1]))
-                           for x in dep_errors)
+            error_lines = ["%s: %s" % (x[0], ", ".join(x[1]))
+                           for x in dep_errors]
             logging.error("%d disallowed dependencies:\n%s",
                           len(dep_errors), "\n".join(error_lines))
+            assert_lines.extend(error_lines[:20])
+
         error_count = len(read_errors) + len(dep_errors)
-        asserts.assertEqual(error_count, 0,
-                            "Total number of errors: " + str(error_count))
+        if error_count:
+            if error_count > len(assert_lines):
+                assert_lines.append("...")
+            assert_lines.append("Total number of errors: " + str(error_count))
+            asserts.fail("\n".join(assert_lines))
 
 
 if __name__ == "__main__":
