@@ -120,7 +120,8 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
                                                     x.startswith("/vendor/")))
 
         def _IsDisallowedSystemLib(lib_path):
-            return (lib_path.startswith("/system/") and
+            return ((lib_path.startswith("/system/") or
+                     lib_path.startswith("/apex/")) and
                     lib_path.endswith(".so") and
                     path_utils.TargetBaseName(lib_path) not in allowed_libs)
 
