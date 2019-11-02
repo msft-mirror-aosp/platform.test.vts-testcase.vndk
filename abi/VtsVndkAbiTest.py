@@ -301,7 +301,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
     def _GetLinkerSearchIndex(target_path):
         """Returns the key for sorting linker search paths."""
         index = 0
-        for prefix in ("/odm", "/vendor", "/system"):
+        for prefix in ("/odm", "/vendor", "/apex"):
             if target_path.startswith(prefix):
                 return index
             index += 1
@@ -330,13 +330,10 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                 self._vndk_version, primary_abi, self.abi_bitness))
         logging.info("dump dir: %s", dump_dir)
 
-        target_vndk_dir = vndk_utils.GetVndkCoreDirectory(self.abi_bitness,
-                                                          self._vndk_version)
-        target_vndk_sp_dir = vndk_utils.GetVndkSpDirectory(self.abi_bitness,
-                                                           self._vndk_version)
         target_dirs = vndk_utils.GetVndkExtDirectories(self.abi_bitness)
         target_dirs += vndk_utils.GetVndkSpExtDirectories(self.abi_bitness)
-        target_dirs += [target_vndk_dir, target_vndk_sp_dir]
+        target_dirs += [vndk_utils.GetVndkDirectory(self.abi_bitness,
+                                                    self._vndk_version)]
         target_dirs.sort(key=self._GetLinkerSearchIndex)
 
         host_dirs = [self._ToHostPath(x) for x in target_dirs]

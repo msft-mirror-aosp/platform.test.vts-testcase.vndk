@@ -46,10 +46,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                  /system/lib[64].
         _sp_hal: List of patterns. The names of the same-process HAL libraries
                  expected to be in /vendor/lib[64].
-        _vndk: Set of strings. The names of VNDK core libraries in
-               /system/lib[64]/vndk-${VER}.
-        _vndk_sp: Set of strings. The names of VNDK-SP libraries in
-                  /system/lib[64]/vndk-sp-${VER}.
+        _vndk: Set of strings. The names of VNDK-core libraries.
+        _vndk_sp: Set of strings. The names of VNDK-SP libraries.
         _SP_HAL_LINK_PATHS: Format strings of same-process HAL's link paths.
         _VENDOR_LINK_PATHS: Format strings of vendor processes' link paths.
     """
