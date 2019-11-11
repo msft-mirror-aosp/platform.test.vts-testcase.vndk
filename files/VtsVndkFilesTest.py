@@ -124,20 +124,13 @@ class VtsVndkFilesTest(base_test.BaseTestClass):
             self._Fail(unexpected)
 
     def testVndkCoreDirectory(self):
-        """Verifies that VNDK-core directory doesn't contain extra files."""
+        """Verifies that VNDK directory doesn't contain extra files."""
         asserts.skipIf(not vndk_utils.IsVndkRuntimeEnforced(self._dut),
                        "VNDK runtime is not enforced on the device.")
         self._TestVndkDirectory(
-            vndk_utils.GetVndkCoreDirectory(
-                self.abi_bitness, self._vndk_version),
-            (vndk_data.VNDK, vndk_data.VNDK_PRIVATE,))
-
-    def testVndkSpDirectory(self):
-        """Verifies that VNDK-SP directory doesn't contain extra files."""
-        self._TestVndkDirectory(
-            vndk_utils.GetVndkSpDirectory(
-                self.abi_bitness, self._vndk_version),
-            (vndk_data.VNDK_SP, vndk_data.VNDK_SP_PRIVATE,))
+            vndk_utils.GetVndkDirectory(self.abi_bitness, self._vndk_version),
+            (vndk_data.VNDK, vndk_data.VNDK_PRIVATE, vndk_data.VNDK_SP,
+             vndk_data.VNDK_SP_PRIVATE,))
 
     def testNoLlndkInVendor(self):
         """Verifies that vendor partition has no LL-NDK libraries."""
