@@ -175,8 +175,14 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
 
         vtables_diff = []
         for record_type in dump_obj.get("record_types", []):
+            # Since Android R, unique_id has been replaced with linker_set_key.
+            # unique_id starts with "_ZTI"; linker_set_key starts with "_ZTS".
             type_name_symbol = record_type.get("unique_id", "")
-            vtable_symbol = type_name_symbol.replace("_ZTS", "_ZTV", 1)
+            if type_name_symbol:
+                vtable_symbol = type_name_symbol.replace("_ZTS", "_ZTV", 1)
+            else:
+                type_name_symbol = record_type.get("linker_set_key", "")
+                vtable_symbol = type_name_symbol.replace("_ZTI", "_ZTV", 1)
 
             # Skip if the vtable symbol isn't global.
             if vtable_symbol not in global_symbols:
