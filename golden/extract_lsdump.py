@@ -41,6 +41,25 @@ class AttrDict(dict):
         self[key] = value
 
 
+def _GetTypeSymbol(record_type):
+    """Gets the mangled name of a record type.
+
+    Before Android R, unique_id was mangled name starting with "_ZTS".
+    linker_set_key was unmangled.
+    Since Android R, unique_id has been removed, and linker_set_key has
+    been changed to mangled name starting with "_ZTI".
+
+    Args:
+        record_type: An AttrDict, a record type in lsdump.
+
+    Returns:
+        A string, the mangled name starting with "_ZTI".
+    """
+    if "unique_id" in record_type:
+        return record_type["unique_id"].replace("_ZTS", "_ZTI", 1)
+    return record_type["linker_set_key"]
+
+
 def _OpenFileOrGzipped(file_name):
     """Opens a file that is either in gzip or uncompressed format.
 
@@ -141,15 +160,15 @@ def _FilterElfObjects(lsdump):
     """
     global_vars = {global_var.linker_set_key
                    for global_var in lsdump.global_vars}
-    record_names = {record_type.unique_id[len('_ZTS'):]
+    record_names = {_GetTypeSymbol(record_type)[len('_ZTI'):]
                     for record_type in lsdump.record_types}
 
     for elf_object in lsdump.elf_objects:
         name = elf_object.name
         if name in global_vars:
             yield elf_object
-        elif (name[:len('_ZTS')] in {'_ZTV', '_ZTT', '_ZTI', '_ZTS'} and
-                name[len('_ZTS'):] in record_names):
+        elif (name[:len('_ZTI')] in {'_ZTV', '_ZTT', '_ZTI', '_ZTS'} and
+                name[len('_ZTI'):] in record_names):
             yield elf_object
 
 
@@ -176,12 +195,12 @@ def _ParseVtablesFromLsdump(lsdump, output_dump):
 
     output_dump.record_types = []
     for lsdump_record_type in lsdump.record_types:
-        type_symbol = lsdump_record_type.unique_id
-        vtable_symbol = '_ZTV' + type_symbol[len('_ZTS'):]
+        type_symbol = _GetTypeSymbol(lsdump_record_type)
+        vtable_symbol = '_ZTV' + type_symbol[len('_ZTI'):]
         if vtable_symbol not in vtable_symbols:
             continue
         record_type = AttrDict()
-        record_type.unique_id = lsdump_record_type.unique_id
+        record_type.linker_set_key = type_symbol
         record_type.vtable_components = lsdump_record_type.vtable_components
         output_dump.record_types.append(record_type)
 
