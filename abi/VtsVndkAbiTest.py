@@ -175,8 +175,14 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
 
         vtables_diff = []
         for record_type in dump_obj.get("record_types", []):
+            # Since Android R, unique_id has been replaced with linker_set_key.
+            # unique_id starts with "_ZTI"; linker_set_key starts with "_ZTS".
             type_name_symbol = record_type.get("unique_id", "")
-            vtable_symbol = type_name_symbol.replace("_ZTS", "_ZTV", 1)
+            if type_name_symbol:
+                vtable_symbol = type_name_symbol.replace("_ZTS", "_ZTV", 1)
+            else:
+                type_name_symbol = record_type.get("linker_set_key", "")
+                vtable_symbol = type_name_symbol.replace("_ZTI", "_ZTV", 1)
 
             # Skip if the vtable symbol isn't global.
             if vtable_symbol not in global_symbols:
@@ -301,7 +307,7 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
     def _GetLinkerSearchIndex(target_path):
         """Returns the key for sorting linker search paths."""
         index = 0
-        for prefix in ("/odm", "/vendor", "/system"):
+        for prefix in ("/odm", "/vendor", "/apex"):
             if target_path.startswith(prefix):
                 return index
             index += 1
@@ -330,13 +336,10 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                 self._vndk_version, primary_abi, self.abi_bitness))
         logging.info("dump dir: %s", dump_dir)
 
-        target_vndk_dir = vndk_utils.GetVndkCoreDirectory(self.abi_bitness,
-                                                          self._vndk_version)
-        target_vndk_sp_dir = vndk_utils.GetVndkSpDirectory(self.abi_bitness,
-                                                           self._vndk_version)
         target_dirs = vndk_utils.GetVndkExtDirectories(self.abi_bitness)
         target_dirs += vndk_utils.GetVndkSpExtDirectories(self.abi_bitness)
-        target_dirs += [target_vndk_dir, target_vndk_sp_dir]
+        target_dirs += [vndk_utils.GetVndkDirectory(self.abi_bitness,
+                                                    self._vndk_version)]
         target_dirs.sort(key=self._GetLinkerSearchIndex)
 
         host_dirs = [self._ToHostPath(x) for x in target_dirs]
