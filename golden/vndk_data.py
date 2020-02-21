@@ -17,6 +17,12 @@
 import collections
 import logging
 import os
+import re
+
+try:
+    from importlib import resources
+except ImportError:
+    resources = None
 
 # The tags in VNDK list:
 # Low-level NDK libraries that can be used by framework and vendor modules.
@@ -47,6 +53,9 @@ _ABI_NAMES = ("arm64", "arm", "mips64", "mips", "x86_64", "x86")
 
 # The data directory.
 _GOLDEN_DIR = os.path.join("vts", "testcases", "vndk", "golden")
+
+# The data package.
+_RESOURCE_PACKAGE = "vts.testcases.vndk";
 
 # Regular expression prefix for library name patterns.
 _REGEX_PREFIX = "[regex]"
@@ -108,32 +117,31 @@ def GetAbiDumpDirectory(data_file_path, version, binder_bitness, abi_name,
     return dump_dir
 
 
-def _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_path):
+def _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_file):
     """Load VNDK libraries from the file to the specified tuple.
 
     Args:
         vndk_lists: The output tuple of lists containing library names.
         tags: Strings, the tags of the libraries to find.
-        vndk_lib_list_path: The path to load the VNDK library list.
+        vndk_lib_list_file: The file object containing the VNDK library list.
     """
 
     lib_sets = collections.defaultdict(set)
 
     # Load VNDK tags from the list.
-    with open(vndk_lib_list_path) as vndk_lib_list_file:
-        for line in vndk_lib_list_file:
-            # Ignore comments.
-            if line.startswith('#'):
-                continue
+    for line in vndk_lib_list_file:
+        # Ignore comments.
+        if line.startswith('#'):
+            continue
 
-            # Split columns.
-            cells = line.split(': ', 1)
-            if len(cells) < 2:
-                continue
-            tag = cells[0]
-            lib_name = cells[1].strip()
+        # Split columns.
+        cells = line.split(': ', 1)
+        if len(cells) < 2:
+            continue
+        tag = cells[0]
+        lib_name = cells[1].strip()
 
-            lib_sets[tag].add(lib_name)
+        lib_sets[tag].add(lib_name)
 
     # Compute VNDK-core-private and VNDK-SP-private.
     private = lib_sets.get('VNDK-private', set())
@@ -187,6 +195,47 @@ def LoadVndkLibraryLists(data_file_path, version, *tags):
 
     vndk_lists = tuple([] for x in tags)
 
-    _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_path)
-    _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_extra_list_path)
+    with open(vndk_lib_list_path, "r") as f:
+        _LoadVndkLibraryListsFile(vndk_lists, tags, f)
+    with open(vndk_lib_extra_list_path, "r") as f:
+        _LoadVndkLibraryListsFile(vndk_lists, tags, f)
+    return vndk_lists
+
+
+def LoadVndkLibraryListsFromResources(version, *tags):
+    """Find the VNDK libraries with specific tags in resources.
+
+    Args:
+        version: A string, the VNDK version.
+        *tags: Strings, the tags of the libraries to find.
+
+    Returns:
+        A tuple of lists containing library names. Each list corresponds to
+        one tag in the argument. For SP-HAL, the returned names are regular
+        expressions.
+        None if the VNDK list for the version is not found.
+    """
+    if not resources:
+        logging.error("Could not import resources module.")
+        return None
+
+    version_str = (version if version and re.match("\\d+", version) else
+                   "current")
+    vndk_lib_list_name = version_str + ".txt"
+    vndk_lib_extra_list_name = "vndk-lib-extra-list-" + version_str + ".txt"
+
+    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_list_name):
+        logging.warning("Cannot load %s.", vndk_lib_list_name)
+        return None
+
+    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_extra_list_name):
+        logging.warning("Cannot load %s.", vndk_lib_extra_list_name)
+        return None
+
+    vndk_lists = tuple([] for x in tags)
+
+    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_list_name) as f:
+        _LoadVndkLibraryListsFile(vndk_lists, tags, f)
+    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_extra_list_name) as f:
+        _LoadVndkLibraryListsFile(vndk_lists, tags, f)
     return vndk_lists
