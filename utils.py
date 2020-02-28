@@ -156,6 +156,10 @@ class AndroidDevice(object):
                           (args, out, err))
         return return_code == 0
 
+    def Exists(self, path):
+        """Returns whether a path on the device exists."""
+        return self._Test("-e", path)
+
     def IsDirectory(self, path):
         """Returns whether a path on the device is a directory."""
         return self._Test("-d", path)
@@ -172,3 +176,28 @@ class AndroidDevice(object):
     def IsExecutable(self, path):
         """Returns if execute permission is granted to a path on the device."""
         return "x" in self._Stat("%A", path)
+
+    def FindFiles(self, path, name_pattern, *options):
+        """Executes find command.
+
+        Args:
+            path: A string, the path on the device.
+            name_pattern: A string, the pattern of the file name.
+            options: Strings, extra options passed to the command.
+
+        Returns:
+            A list of strings, the paths to the found files.
+
+        Raises:
+            ValueError if the pattern contains quotes.
+            IOError if the path does not exist.
+        """
+        if '"' in name_pattern or "'" in name_pattern:
+            raise ValueError("File name pattern contains quotes.")
+        out, err, return_code = self._ExecuteCommand("find", path, "-name",
+                                                     "'" + name_pattern + "'",
+                                                     *options)
+        if return_code != 0 or err.strip():
+            raise IOError("`find %s -name '%s' %s` stdout: %s\nstderr: %s" %
+                          (path, name_pattern, " ".join(options), out, err))
+        return out.strip().split("\n")
