@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-python_library {
+python_library_host {
     name: "vts_vndk_utils",
     pkg_path: "vts/testcases/vndk",
     srcs: [
@@ -50,7 +50,7 @@ python_defaults {
     }
 }
 
-python_test {
+python_test_host {
     name: "vts_vndk_dependency_test",
     defaults: ["vts_vndk_default"],
     main: "dependency/vts_vndk_dependency_test.py",
