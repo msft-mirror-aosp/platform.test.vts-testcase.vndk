@@ -24,7 +24,15 @@ import subprocess
 class AndroidDevice(object):
     """This class controls the device via adb commands."""
 
-    def _ExecuteCommand(self, *cmd):
+    def __init__(self, serial_number):
+        self._serial_number = serial_number
+
+    def AdbPull(self, src, dst):
+        cmd = ["adb", "-s", self._serial_number, "pull", src, dst]
+        subprocess.check_call(cmd, shell=False, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def _ExecuteCommand(self, *args):
         """Executes a command.
 
         Args:
@@ -34,6 +42,8 @@ class AndroidDevice(object):
             Stdout as a string, stderr as a string, and return code as an
             integer.
         """
+        cmd = ["adb", "-s", self._serial_number, "shell"]
+        cmd.extend(args)
         proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
@@ -140,8 +150,7 @@ class AndroidDevice(object):
 
     def _Test(self, *args):
         """Tests file types and status."""
-        out, err, return_code = self._ExecuteCommand("sh", "-c",
-                                                     "test " + " ".join(args))
+        out, err, return_code = self._ExecuteCommand("test", *args)
         if out.strip() or err.strip():
             raise IOError("`test` args: %s\nstdout: %s\nstderr: %s" %
                           (args, out, err))
