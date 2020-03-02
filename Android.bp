@@ -75,3 +75,16 @@ python_test_host {
     ],
     test_config: "files/vts_vndk_files_test.xml",
 }
+
+python_test_host {
+    name: "vts_vndk_open_libraries_test",
+    defaults: ["vts_vndk_default"],
+    main: "open_libraries/vts_vndk_open_libraries_test.py",
+    srcs: [
+        "open_libraries/vts_vndk_open_libraries_test.py",
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "open_libraries/vts_vndk_open_libraries_test.xml",
+}
