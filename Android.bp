@@ -58,3 +58,16 @@ python_test_host {
         "dependency/vts_vndk_dependency_test.py",
     ]
 }
+
+python_test_host {
+    name: "vts_vndk_files_test",
+    defaults: ["vts_vndk_default"],
+    main: "files/vts_vndk_files_test.py",
+    srcs: [
+        "files/vts_vndk_files_test.py",
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "files/vts_vndk_files_test.xml",
+}
