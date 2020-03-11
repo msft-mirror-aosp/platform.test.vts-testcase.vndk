@@ -19,6 +19,7 @@ import argparse
 import gzip
 import json
 import os
+import zipfile
 
 
 class LsdumpError(Exception):
@@ -205,6 +206,43 @@ def _ParseVtablesFromLsdump(lsdump, output_dump):
         output_dump.record_types.append(record_type)
 
 
+def _ParseLsdumpFileObject(lsdump_file):
+    """Converts an lsdump file to a dump object.
+
+    Args:
+        lsdump_file: The file object of the input lsdump.
+
+    Returns:
+        The AttrDict object converted from the lsdump file.
+
+    Raises:
+        LsdumpError if fails to create the dump file.
+    """
+    try:
+        lsdump = json.load(lsdump_file, object_hook=AttrDict)
+    except ValueError:
+        raise LsdumpError(e)
+
+    try:
+        output_dump = AttrDict()
+        _ParseVtablesFromLsdump(lsdump, output_dump)
+        _ParseSymbolsFromLsdump(lsdump, output_dump)
+        return output_dump
+    except AttributeError as e:
+        raise LsdumpError(e)
+
+
+def _ParseLsdumpZipFile(lsdump_zip, output_zip):
+    """Converts zipped lsdump files to the dump files for ABI test."""
+    for name in lsdump_zip.namelist():
+        if name.endswith(".lsdump"):
+            with lsdump_zip.open(name, mode="r") as lsdump_file:
+                output_dump = _ParseLsdumpFileObject(lsdump_file)
+            output_str = json.dumps(output_dump, indent=1,
+                                    separators=(',', ':'))
+            output_zip.writestr(name, output_str)
+
+
 def ParseLsdumpFile(input_path, output_path):
     """Converts an lsdump file to a dump file for the ABI test.
 
@@ -215,25 +253,15 @@ def ParseLsdumpFile(input_path, output_path):
     Raises:
         LsdumpError if fails to create the dump file.
     """
-    try:
-        with _OpenFileOrGzipped(input_path) as lsdump_file:
-            lsdump = json.load(lsdump_file, object_hook=AttrDict)
-    except (IOError, ValueError) as e:
-        raise LsdumpError(e)
-
-    try:
-        output_dump = AttrDict()
-        _ParseVtablesFromLsdump(lsdump, output_dump)
-        _ParseSymbolsFromLsdump(lsdump, output_dump)
-    except AttributeError as e:
-        raise LsdumpError(e)
-
     abs_output_path = os.path.abspath(output_path)
     abs_output_dir = os.path.dirname(abs_output_path)
 
     try:
         if abs_output_dir and not os.path.exists(abs_output_dir):
             os.makedirs(abs_output_dir)
+
+        with _OpenFileOrGzipped(input_path) as lsdump_file:
+            output_dump = _ParseLsdumpFileObject(lsdump_file)
         with open(output_path, 'wb') as output_file:
             json.dump(output_dump, output_file,
                       indent=1, separators=(',', ':'))
@@ -250,6 +278,17 @@ def main():
     arg_parser.add_argument('output_path',
                             help='output dump file path.')
     args = arg_parser.parse_args()
+
+    # TODO(b/150663999): Remove this when the build system is able to process
+    #                    the large file group.
+    if zipfile.is_zipfile(args.input_path):
+        with zipfile.ZipFile(args.input_path, mode='r') as input_zip:
+            # The zip will be added to a Python package. It is not necessary
+            # to reduce the file size.
+            with zipfile.ZipFile(args.output_path, mode='w',
+                                 compression=zipfile.ZIP_STORED) as output_zip:
+                _ParseLsdumpZipFile(input_zip, output_zip)
+        exit(0)
 
     try:
         ParseLsdumpFile(args.input_path, args.output_path)
