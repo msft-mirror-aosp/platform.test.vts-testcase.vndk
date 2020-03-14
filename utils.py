@@ -18,13 +18,24 @@
 # TODO(b/147454897): Keep the logic in sync with
 #                    test/vts/utils/python/controllers/android_device.py until
 #                    it is removed.
+import gzip
 import logging
+import os
 import subprocess
+import tempfile
 
 class AndroidDevice(object):
     """This class controls the device via adb commands."""
 
-    def _ExecuteCommand(self, *cmd):
+    def __init__(self, serial_number):
+        self._serial_number = serial_number
+
+    def AdbPull(self, src, dst):
+        cmd = ["adb", "-s", self._serial_number, "pull", src, dst]
+        subprocess.check_call(cmd, shell=False, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def Execute(self, *args):
         """Executes a command.
 
         Args:
@@ -34,6 +45,8 @@ class AndroidDevice(object):
             Stdout as a string, stderr as a string, and return code as an
             integer.
         """
+        cmd = ["adb", "-s", self._serial_number, "shell"]
+        cmd.extend(args)
         proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
@@ -56,7 +69,7 @@ class AndroidDevice(object):
         Raises:
             IOError if the command fails.
         """
-        out, err, return_code = self._ExecuteCommand("getprop", name)
+        out, err, return_code = self.Execute("getprop", name)
         if err.strip() or return_code != 0:
             raise IOError("`getprop %s` stdout: %s\nstderr: %s" %
                           (name, out, err))
@@ -131,21 +144,69 @@ class AndroidDevice(object):
         """Gets the VNDK version that the vendor partition requests."""
         return self._GetProp("ro.vndk.version")
 
+    def GetKernelConfig(self, config_name):
+        """Gets kernel config from the device.
+
+        Args:
+            config_name: A string, the name of the configuration.
+
+        Returns:
+            "y" or "m" if the config is set.
+            "" if the config is not set.
+            None if fails to read config.
+        """
+        line_prefix = config_name + "="
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            config_path = temp_file.name
+        try:
+            logging.debug("Pull config.gz to %s", config_path)
+            self.AdbPull("/proc/config.gz", config_path)
+            with gzip.open(config_path, "rt") as config_file:
+                for line in config_file:
+                    if line.strip().startswith(line_prefix):
+                        logging.debug("Found config: %s", line)
+                        return line.strip()[len(line_prefix):]
+            logging.debug("%s is not set.", config_name)
+            return ""
+        except (subprocess.CalledProcessError, IOError) as e:
+            logging.exception("Cannot read kernel config.", e)
+            return None
+        finally:
+            os.remove(config_path)
+
+    def GetBinderBitness(self):
+        """Returns the value of BINDER_IPC_32BIT in kernel config.
+
+        Returns:
+            32 or 64, binder bitness of the device.
+            None if fails to read config.
+        """
+        config_value = self.GetKernelConfig("CONFIG_ANDROID_BINDER_IPC_32BIT")
+        if config_value is None:
+            return None
+        elif config_value:
+            return 32
+        else:
+            return 64
+
     def IsRoot(self):
         """Returns whether adb has root privilege on the device."""
-        out, err, return_code = self._ExecuteCommand("id")
+        out, err, return_code = self.Execute("id")
         if err.strip() or return_code != 0:
             raise IOError("`id` stdout: %s\nstderr: %s \n" % (out, err))
         return "uid=0(root)" in out.strip()
 
     def _Test(self, *args):
         """Tests file types and status."""
-        out, err, return_code = self._ExecuteCommand("sh", "-c",
-                                                     "test " + " ".join(args))
+        out, err, return_code = self.Execute("test", *args)
         if out.strip() or err.strip():
             raise IOError("`test` args: %s\nstdout: %s\nstderr: %s" %
                           (args, out, err))
         return return_code == 0
+
+    def Exists(self, path):
+        """Returns whether a path on the device exists."""
+        return self._Test("-e", path)
 
     def IsDirectory(self, path):
         """Returns whether a path on the device is a directory."""
@@ -153,8 +214,7 @@ class AndroidDevice(object):
 
     def _Stat(self, fmt, path):
         """Executes stat command."""
-        out, err, return_code = self._ExecuteCommand("stat", "--format", fmt,
-                                                     path)
+        out, err, return_code = self.Execute("stat", "--format", fmt, path)
         if return_code != 0 or err.strip():
             raise IOError("`stat --format %s %s` stdout: %s\nstderr: %s" %
                           (fmt, path, out, err))
@@ -163,3 +223,28 @@ class AndroidDevice(object):
     def IsExecutable(self, path):
         """Returns if execute permission is granted to a path on the device."""
         return "x" in self._Stat("%A", path)
+
+    def FindFiles(self, path, name_pattern, *options):
+        """Executes find command.
+
+        Args:
+            path: A string, the path on the device.
+            name_pattern: A string, the pattern of the file name.
+            options: Strings, extra options passed to the command.
+
+        Returns:
+            A list of strings, the paths to the found files.
+
+        Raises:
+            ValueError if the pattern contains quotes.
+            IOError if the path does not exist.
+        """
+        if '"' in name_pattern or "'" in name_pattern:
+            raise ValueError("File name pattern contains quotes.")
+        out, err, return_code = self.Execute("find", path, "-name",
+                                             "'" + name_pattern + "'",
+                                             *options)
+        if return_code != 0 or err.strip():
+            raise IOError("`find %s -name '%s' %s` stdout: %s\nstderr: %s" %
+                          (path, name_pattern, " ".join(options), out, err))
+        return out.strip().split("\n")

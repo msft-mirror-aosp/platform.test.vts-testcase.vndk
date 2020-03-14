@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-python_library {
+python_library_host {
     name: "vts_vndk_utils",
     pkg_path: "vts/testcases/vndk",
     srcs: [
@@ -50,11 +50,57 @@ python_defaults {
     }
 }
 
-python_test {
+python_test_host {
+    name: "vts_vndk_abi_test",
+    defaults: ["vts_vndk_default"],
+    main: "abi/vts_vndk_abi_test.py",
+    srcs: [
+        "abi/vts_vndk_abi_test.py",
+    ],
+    data: [
+        ":vts_vndk_abi_dump_zip",
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "abi/vts_vndk_abi_test.xml",
+}
+
+python_test_host {
     name: "vts_vndk_dependency_test",
     defaults: ["vts_vndk_default"],
     main: "dependency/vts_vndk_dependency_test.py",
     srcs: [
         "dependency/vts_vndk_dependency_test.py",
-    ]
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "dependency/vts_vndk_dependency_test.xml",
+}
+
+python_test_host {
+    name: "vts_vndk_files_test",
+    defaults: ["vts_vndk_default"],
+    main: "files/vts_vndk_files_test.py",
+    srcs: [
+        "files/vts_vndk_files_test.py",
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "files/vts_vndk_files_test.xml",
+}
+
+python_test_host {
+    name: "vts_vndk_open_libraries_test",
+    defaults: ["vts_vndk_default"],
+    main: "open_libraries/vts_vndk_open_libraries_test.py",
+    srcs: [
+        "open_libraries/vts_vndk_open_libraries_test.py",
+    ],
+    test_suites: [
+        "vts-core",
+    ],
+    test_config: "open_libraries/vts_vndk_open_libraries_test.xml",
 }
