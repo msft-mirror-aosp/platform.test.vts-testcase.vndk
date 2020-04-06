@@ -15,7 +15,6 @@
 -->
 <configuration description="Config for vts_vndk_files_test">
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer" />
-    <option name="test-suite-tag" value="vts-core" />
     <test class="com.android.tradefed.testtype.python.PythonBinaryHostTest">
         <option name="par-file-name" value="vts_vndk_files_test" />
         <option name="test-timeout" value="2m" />
