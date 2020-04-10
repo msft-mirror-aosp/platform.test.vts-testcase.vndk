@@ -180,4 +180,6 @@ class VtsVndkFilesTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # Setting verbosity is required to generate output that the TradeFed test
+    # runner can parse.
+    unittest.main(verbosity=3)
