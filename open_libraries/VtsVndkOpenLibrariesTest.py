@@ -120,8 +120,7 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
                                                     x.startswith("/vendor/")))
 
         def _IsDisallowedSystemLib(lib_path):
-            return ((lib_path.startswith("/system/") or
-                     lib_path.startswith("/apex/")) and
+            return (lib_path.startswith("/system/") and
                     lib_path.endswith(".so") and
                     path_utils.TargetBaseName(lib_path) not in allowed_libs)
 
@@ -130,13 +129,8 @@ class VtsVndkOpenLibrariesTest(base_test.BaseTestClass):
             error_lines = ["%s %s %s" % (pid, cmds[pid], libs)
                            for pid, libs in deps.iteritems()]
             logging.error("pid command libraries\n%s", "\n".join(error_lines))
-
-            assert_lines = ["pid command libraries"] + error_lines[:20]
-            if len(deps) > 20:
-                assert_lines.append("...")
-            assert_lines.append("Number of vendor processes using system "
-                                "libraries: " + str(len(deps)))
-            asserts.fail("\n".join(assert_lines))
+            asserts.fail("Number of vendor processes using system libraries: " +
+                         str(len(deps)))
 
 
 if __name__ == "__main__":

@@ -240,9 +240,9 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                           with the dump directories of the given version.
 
         Returns:
-            A list of strings, the incompatible libraries.
+            An integer, number of incompatible libraries.
         """
-        error_list = []
+        error_count = 0
         dump_paths = dict()
         lib_paths = dict()
         for parent_dir, dump_name in utils.iterate_files(dump_dir):
@@ -292,16 +292,16 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                               rel_path,
                               "\n".join(" ".join(e) for e in vtable_diff))
             if (has_exception or missing_symbols or vtable_diff):
-                error_list.append(rel_path)
+                error_count += 1
             else:
                 logging.info("%s: Pass", rel_path)
-        return error_list
+        return error_count
 
     @staticmethod
     def _GetLinkerSearchIndex(target_path):
         """Returns the key for sorting linker search paths."""
         index = 0
-        for prefix in ("/odm", "/vendor", "/apex"):
+        for prefix in ("/odm", "/vendor", "/system"):
             if target_path.startswith(prefix):
                 return index
             index += 1
@@ -330,23 +330,22 @@ class VtsVndkAbiTest(base_test.BaseTestClass):
                 self._vndk_version, primary_abi, self.abi_bitness))
         logging.info("dump dir: %s", dump_dir)
 
+        target_vndk_dir = vndk_utils.GetVndkCoreDirectory(self.abi_bitness,
+                                                          self._vndk_version)
+        target_vndk_sp_dir = vndk_utils.GetVndkSpDirectory(self.abi_bitness,
+                                                           self._vndk_version)
         target_dirs = vndk_utils.GetVndkExtDirectories(self.abi_bitness)
         target_dirs += vndk_utils.GetVndkSpExtDirectories(self.abi_bitness)
-        target_dirs += [vndk_utils.GetVndkDirectory(self.abi_bitness,
-                                                    self._vndk_version)]
+        target_dirs += [target_vndk_dir, target_vndk_sp_dir]
         target_dirs.sort(key=self._GetLinkerSearchIndex)
 
         host_dirs = [self._ToHostPath(x) for x in target_dirs]
         for target_dir, host_dir in zip(target_dirs, host_dirs):
             self._PullOrCreateDir(target_dir, host_dir)
 
-        assert_lines = self._ScanLibDirs(dump_dir, host_dirs, dump_version)
-        if assert_lines:
-            error_count = len(assert_lines)
-            if error_count > 20:
-                assert_lines = assert_lines[:20] + ["..."]
-            assert_lines.append("Total number of errors: " + str(error_count))
-            asserts.fail("\n".join(assert_lines))
+        error_count = self._ScanLibDirs(dump_dir, host_dirs, dump_version)
+        asserts.assertEqual(error_count, 0,
+                            "Total number of errors: " + str(error_count))
 
 
 if __name__ == "__main__":
