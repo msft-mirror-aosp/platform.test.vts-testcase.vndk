@@ -30,9 +30,6 @@ except ImportError:
 # Low-level NDK libraries that can be used by framework and vendor modules.
 LL_NDK = "LLNDK"
 
-# LL-NDK dependencies that vendor modules cannot directly access.
-LL_NDK_PRIVATE = "LLNDK-private"
-
 # Same-process HAL implementation in vendor partition.
 SP_HAL = "SP-HAL"
 
@@ -220,7 +217,6 @@ def _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_file):
     # Compute VNDK-core-private and VNDK-SP-private.
     private = lib_sets.get('VNDK-private', set())
 
-    lib_sets[LL_NDK_PRIVATE].update(lib_sets[LL_NDK] & private)
     lib_sets[VNDK_PRIVATE].update(lib_sets[VNDK] & private)
     lib_sets[VNDK_SP_PRIVATE].update(lib_sets[VNDK_SP] & private)
 
