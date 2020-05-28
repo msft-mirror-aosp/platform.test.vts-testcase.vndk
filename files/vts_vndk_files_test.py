@@ -18,6 +18,7 @@
 import logging
 import os
 import posixpath as target_path_module
+import sys
 import unittest
 
 from vts.testcases.vndk import utils
@@ -180,6 +181,9 @@ class VtsVndkFilesTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    # The logs are written to stdout so that TradeFed test runner can parse the
+    # results from stderr.
+    logging.basicConfig(stream=sys.stdout)
     # Setting verbosity is required to generate output that the TradeFed test
     # runner can parse.
     unittest.main(verbosity=3)
