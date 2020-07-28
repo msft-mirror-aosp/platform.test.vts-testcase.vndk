@@ -52,6 +52,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                   /system/lib[64]/vndk-sp-${VER}.
         _SP_HAL_LINK_PATHS: Format strings of same-process HAL's link paths.
         _VENDOR_LINK_PATHS: Format strings of vendor processes' link paths.
+        _VENDOR_APP_DIRS: The app directories in vendor partitions.
     """
     _TARGET_ROOT_DIR = "/"
     _TARGET_ODM_DIR = "/odm"
@@ -64,6 +65,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     _VENDOR_LINK_PATHS = [
         "/odm/{LIB}/hw", "/odm/{LIB}/egl", "/odm/{LIB}",
         "/vendor/{LIB}/hw", "/vendor/{LIB}/egl", "/vendor/{LIB}"
+    ]
+    _VENDOR_APP_DIRS = [
+        "/vendor/app", "/vendor/priv-app", "/odm/app", "/odm/priv-app"
     ]
     _DEFAULT_PROGRAM_INTERPRETERS = [
         "/system/bin/linker", "/system/bin/linker64"
@@ -294,9 +298,10 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         Args:
             objs: A collection of ElfObject, the libraries/executables.
-            is_allowed_dependency: A function that takes the library name as the
-                                   argument and returns whether objs can depend
-                                   on the library.
+            is_allowed_dependency: A function that takes a library name and an
+                                   ElfObject as the arguments, and returns
+                                   whether the object can depend on the
+                                   library.
 
         Returns:
             List of tuples (path, disallowed_dependencies). The library with
@@ -305,7 +310,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         dep_errors = []
         for obj in objs:
             disallowed_libs = [
-                x for x in obj.deps if not is_allowed_dependency(x)]
+                x for x in obj.deps if not is_allowed_dependency(x, obj)]
             if disallowed_libs:
                 dep_errors.append((obj.target_path, disallowed_libs))
         return dep_errors
@@ -330,10 +335,20 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             List of tuples (path, disallowed_dependencies).
         """
         vendor_lib_names = set(x.name for x in vendor_libs)
-        is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._vndk or
-                                    x in self._vndk_sp or
-                                    x in vendor_lib_names)
+        # b/123216664 App libraries depend on those in the same directory.
+        vendor_app_lib_names = {}
+        for obj in vendor_objs:
+            if any(obj.target_dir.startswith(app_dir + "/") for app_dir in
+                    self._VENDOR_APP_DIRS):
+                vendor_app_lib_names.setdefault(
+                    obj.target_dir, set()).add(obj.name)
+
+        is_allowed_dep = lambda name, obj: (
+            name in self._ll_ndk or
+            name in self._vndk or
+            name in self._vndk_sp or
+            name in vendor_lib_names or
+            name in vendor_app_lib_names.get(obj.target_dir, ()))
         return self._FilterDisallowedDependencies(vendor_objs, is_allowed_dep)
 
     def _TestVndkSpExtDependency(self, vndk_sp_ext_deps, vendor_libs):
@@ -357,9 +372,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             List of tuples (path, disallowed_dependencies).
         """
         vendor_lib_names = set(x.name for x in vendor_libs)
-        is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._vndk_sp or
-                                    x in vendor_lib_names)
+        is_allowed_dep = lambda x, obj: (x in self._ll_ndk or
+                                         x in self._vndk_sp or
+                                         x in vendor_lib_names)
         return self._FilterDisallowedDependencies(
             vndk_sp_ext_deps, is_allowed_dep)
 
@@ -379,9 +394,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
             List of tuples (path, disallowed_dependencies).
         """
         sp_hal_lib_names = set(x.name for x in sp_hal_libs)
-        is_allowed_dep = lambda x: (x in self._ll_ndk or
-                                    x in self._vndk_sp or
-                                    x in sp_hal_lib_names)
+        is_allowed_dep = lambda x, obj: (x in self._ll_ndk or
+                                         x in self._vndk_sp or
+                                         x in sp_hal_lib_names)
         return self._FilterDisallowedDependencies(sp_hal_libs, is_allowed_dep)
 
     def _TestElfDependency(self, bitness, objs):
