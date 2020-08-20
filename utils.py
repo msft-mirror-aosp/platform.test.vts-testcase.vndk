@@ -247,7 +247,4 @@ class AndroidDevice(object):
         if return_code != 0 or err.strip():
             raise IOError("`find %s -name '%s' %s` stdout: %s\nstderr: %s" %
                           (path, name_pattern, " ".join(options), out, err))
-
-        # Return empty file list when out is an empty string.
-        out = out.strip()
-        return out.split("\n") if out else []
+        return out.strip().split("\n")
