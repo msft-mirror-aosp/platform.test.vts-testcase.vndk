@@ -32,7 +32,10 @@ class AndroidDevice(object):
 
     def AdbPull(self, src, dst):
         cmd = ["adb", "-s", self._serial_number, "pull", src, dst]
-        subprocess.check_call(cmd, shell=False, stdin=subprocess.PIPE,
+        env = os.environ.copy()
+        if "ADB_COMPRESSION" not in env:
+            env["ADB_COMPRESSION"] = "0"
+        subprocess.check_call(cmd, shell=False, env=env, stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def Execute(self, *args):
