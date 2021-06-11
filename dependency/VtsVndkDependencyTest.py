@@ -52,8 +52,12 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
                /system/lib[64]/vndk-${VER}.
         _vndk_sp: Set of strings. The names of VNDK-SP libraries in
                   /system/lib[64]/vndk-sp-${VER}.
-        _SP_HAL_LINK_PATHS: Format strings of same-process HAL's link paths.
-        _VENDOR_LINK_PATHS: Format strings of vendor processes' link paths.
+        _SP_HAL_LINK_PATHS: Format strings of same-process HAL's default link
+                            paths.
+        _VENDOR_LINK_PATHS: Format strings of vendor processes' default link
+                            paths.
+        _VENDOR_PERMITTED_PATHS: Same-process HAL and vendor processes'
+                                 permitted link paths.
         _VENDOR_APP_DIRS: The app directories in vendor partitions.
     """
     _TARGET_DIR_SEP = "/"
@@ -68,6 +72,9 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
     _VENDOR_LINK_PATHS = [
         "/odm/{LIB}/hw", "/odm/{LIB}/egl", "/odm/{LIB}",
         "/vendor/{LIB}/hw", "/vendor/{LIB}/egl", "/vendor/{LIB}"
+    ]
+    _VENDOR_PERMITTED_PATHS = [
+        "/odm", "/vendor"
     ]
     _VENDOR_APP_DIRS = [
         "/vendor/app", "/vendor/priv-app", "/odm/app", "/odm/priv-app"
@@ -362,7 +369,7 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
         vendor_link_paths = [vndk_utils.FormatVndkPath(x, bitness) for
                              x in self._VENDOR_LINK_PATHS]
         vendor_namespace = self._FindLibsInLinkPaths(
-            bitness, vendor_link_paths + self._VENDOR_APP_DIRS, objs)
+            bitness, self._VENDOR_PERMITTED_PATHS, objs)
         # Exclude VNDK and VNDK-SP extensions from vendor libraries.
         for vndk_ext_dir in (vndk_utils.GetVndkExtDirectories(bitness) +
                              vndk_utils.GetVndkSpExtDirectories(bitness)):
@@ -373,8 +380,8 @@ class VtsVndkDependencyTest(base_test.BaseTestClass):
 
         sp_hal_link_paths = [vndk_utils.FormatVndkPath(x, bitness) for
                              x in self._SP_HAL_LINK_PATHS]
-        sp_hal_namespace = self._FindLibsInLinkPaths(bitness,
-                                                     sp_hal_link_paths, objs)
+        sp_hal_namespace = self._FindLibsInLinkPaths(
+            bitness, self._VENDOR_PERMITTED_PATHS, objs)
 
         # Find same-process HAL and dependencies
         sp_hal_libs = set()
