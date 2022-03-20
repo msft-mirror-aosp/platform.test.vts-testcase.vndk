@@ -49,9 +49,9 @@ VNDK_SP_PRIVATE = "VNDK-SP-private"
 # The tuples of (ABI name, bitness, arch name). 64-bit comes before 32-bit in
 # order to sequentially search for longest prefix.
 _ABI_LIST = (
-    ("arm64", 64, "arm64_armv8-a"),
-    ("arm64", 32, "arm_armv8-a"),
-    ("arm", 32, "arm_armv7-a-neon"),
+    ("arm64", 64, "arm64"),
+    ("arm64", 32, "arm_arm64"),
+    ("arm", 32, "arm"),
     ("x86_64", 64, "x86_64"),
     ("x86_64", 32, "x86_x86_64"),
     ("x86", 32, "x86"),
