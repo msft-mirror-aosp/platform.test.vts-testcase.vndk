@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Copyright (C) 2018 The Android Open Source Project
 #
@@ -19,7 +19,6 @@ import argparse
 import gzip
 import json
 import os
-import sys
 import zipfile
 
 
@@ -46,27 +45,27 @@ class AttrDict(dict):
 def _GetTypeSymbol(record_type):
     """Gets the mangled name of a record type.
 
-    Before Android R, unique_id was mangled name starting with '_ZTS'.
+    Before Android R, unique_id was mangled name starting with "_ZTS".
     linker_set_key was unmangled.
     Since Android R, unique_id has been removed, and linker_set_key has
-    been changed to mangled name starting with '_ZTI'.
+    been changed to mangled name starting with "_ZTI".
 
     Args:
         record_type: An AttrDict, a record type in lsdump.
 
     Returns:
-        A string, the mangled name starting with '_ZTI'.
+        A string, the mangled name starting with "_ZTI".
     """
-    if 'unique_id' in record_type:
-        return record_type['unique_id'].replace('_ZTS', '_ZTI', 1)
-    return record_type['linker_set_key']
+    if "unique_id" in record_type:
+        return record_type["unique_id"].replace("_ZTS", "_ZTI", 1)
+    return record_type["linker_set_key"]
 
 
 def _OpenFileOrGzipped(file_name):
     """Opens a file that is either in gzip or uncompressed format.
 
-    If file_name ends with '.gz' then an opened gzip text file, else return an
-    opened text file.
+    If file_name ends with '.gz' then return gzip.open(file_name, 'rb'),
+    else return open(file_name, 'rb').
 
     Args:
         file_name: The file name to open.
@@ -78,8 +77,8 @@ def _OpenFileOrGzipped(file_name):
         IOError if fails to open.
     """
     if file_name.endswith('.gz'):
-        return gzip.open(file_name, 'rt')
-    return open(file_name, 'r')
+        return gzip.open(file_name, 'rb')
+    return open(file_name, 'rb')
 
 
 def _ConsumeOffset(tok, beg=0):
@@ -236,8 +235,8 @@ def _ParseLsdumpFileObject(lsdump_file):
 def _ParseLsdumpZipFile(lsdump_zip, output_zip):
     """Converts zipped lsdump files to the dump files for ABI test."""
     for name in lsdump_zip.namelist():
-        if name.endswith('.lsdump'):
-            with lsdump_zip.open(name, mode='r') as lsdump_file:
+        if name.endswith(".lsdump"):
+            with lsdump_zip.open(name, mode="r") as lsdump_file:
                 output_dump = _ParseLsdumpFileObject(lsdump_file)
             output_str = json.dumps(output_dump, indent=1,
                                     separators=(',', ':'))
@@ -263,7 +262,7 @@ def ParseLsdumpFile(input_path, output_path):
 
         with _OpenFileOrGzipped(input_path) as lsdump_file:
             output_dump = _ParseLsdumpFileObject(lsdump_file)
-        with open(output_path, 'w') as output_file:
+        with open(output_path, 'wb') as output_file:
             json.dump(output_dump, output_file,
                       indent=1, separators=(',', ':'))
     except (IOError, OSError) as e:
@@ -289,13 +288,13 @@ def main():
             with zipfile.ZipFile(args.output_path, mode='w',
                                  compression=zipfile.ZIP_STORED) as output_zip:
                 _ParseLsdumpZipFile(input_zip, output_zip)
-        sys.exit(0)
+        exit(0)
 
     try:
         ParseLsdumpFile(args.input_path, args.output_path)
     except LsdumpError as e:
         print(e)
-        sys.exit(1)
+        exit(1)
 
 
 if __name__ == '__main__':
