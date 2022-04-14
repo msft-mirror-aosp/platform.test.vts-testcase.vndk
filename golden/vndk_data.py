@@ -46,12 +46,13 @@ VNDK_SP = "VNDK-SP"
 # VNDK-SP dependencies that vendor modules cannot directly access.
 VNDK_SP_PRIVATE = "VNDK-SP-private"
 
-# The tuples of (ABI name, bitness, arch name). 64-bit comes before 32-bit in
-# order to sequentially search for longest prefix.
+# The tuples of (ABI name, bitness, arch name, legacy name ...). The legacy
+# name is for VNDK 32 and older versions. 64-bit comes before 32-bit in order
+# to sequentially search for longest prefix.
 _ABI_LIST = (
-    ("arm64", 64, "arm64"),
-    ("arm64", 32, "arm_arm64"),
-    ("arm", 32, "arm"),
+    ("arm64", 64, "arm64", "arm64_armv8-a"),
+    ("arm64", 32, "arm_arm64", "arm_armv8-a"),
+    ("arm", 32, "arm", "arm_armv7-a-neon"),
     ("x86_64", 64, "x86_64"),
     ("x86_64", 32, "x86_x86_64"),
     ("x86", 32, "x86"),
@@ -111,23 +112,27 @@ def GetAbiDumpPathsFromResources(version, binder_bitness, abi_name, abi_bitness)
 
     abi_bitness = int(abi_bitness)
     try:
-        arch_name = next(x[2] for x in _ABI_LIST if
-                         abi_name.startswith(x[0]) and x[1] == abi_bitness)
+        arch_names = next(x[2:] for x in _ABI_LIST if
+                          abi_name.startswith(x[0]) and x[1] == abi_bitness)
     except StopIteration:
         logging.warning("Unknown %d-bit ABI %s.", abi_bitness, abi_name)
         return dict()
 
     # The separator in zipped path is always "/".
-    dump_dir = "/".join((version, str(binder_bitness), arch_name,
-                         "source-based")) + "/"
+    dump_dirs = ["/".join((version, str(binder_bitness), arch_name,
+                           "source-based")) + "/"
+                 for arch_name in arch_names]
+    ext = ".lsdump"
 
     dump_paths = dict()
 
     with AbiDumpResource() as dump_resource:
         for path in dump_resource.zip_file.namelist():
-            if path.startswith(dump_dir) and path.endswith(".lsdump"):
-                lib_name = path[len(dump_dir):-len(".lsdump")]
-                dump_paths[lib_name] = path
+            for dump_dir in dump_dirs:
+                if path.startswith(dump_dir) and path.endswith(ext):
+                    lib_name = path[len(dump_dir):-len(ext)]
+                    dump_paths[lib_name] = path
+                    break
 
     return dump_paths
 
