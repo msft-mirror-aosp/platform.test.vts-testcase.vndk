@@ -27,14 +27,6 @@ python_library_host {
         ":vndk_lib_lists",
         ":vndk_lib_extra_lists"
     ],
-    version: {
-        py2: {
-            enabled: true,
-        },
-        py3: {
-            enabled: true,
-        },
-    },
 }
 
 python_defaults {
@@ -44,11 +36,7 @@ python_defaults {
         "vts_vndk_utils",
     ],
     version: {
-        py2: {
-            enabled: false,
-        },
         py3: {
-            enabled: true,
             embedded_launcher: true,
         }
     }
