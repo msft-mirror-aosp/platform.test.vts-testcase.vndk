@@ -69,6 +69,7 @@ python_test_host {
         "dependency/vts_vndk_dependency_test.py",
     ],
     test_suites: [
+        "general-tests",
         "vts",
     ],
     test_config: "dependency/vts_vndk_dependency_test.xml",
@@ -85,6 +86,7 @@ python_test_host {
         "files/vts_vndk_files_test.py",
     ],
     test_suites: [
+        "general-tests",
         "vts",
     ],
     test_config: "files/vts_vndk_files_test.xml",
