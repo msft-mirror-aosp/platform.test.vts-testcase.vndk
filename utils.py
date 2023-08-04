@@ -15,28 +15,44 @@
 # limitations under the License.
 #
 
-# TODO(b/147454897): Keep the logic in sync with
-#                    test/vts/utils/python/controllers/android_device.py until
-#                    it is removed.
 import gzip
 import logging
 import os
+import shlex
 import subprocess
 import tempfile
 
-class AndroidDevice(object):
-    """This class controls the device via adb commands."""
 
-    def __init__(self, serial_number):
+class AndroidDevice(object):
+    """This class controls the device via adb or shell commands."""
+
+    def __init__(self, serial_number=None):
+        """Initialize the serial number.
+
+        A non-empty serial number indicates that this process runs on a host
+        and controls the devices via adb. An empty serial number indicates that
+        this process runs on an Android device and executes shell commands.
+
+        Args:
+            serial_number: A string or None.
+        """
         self._serial_number = serial_number
 
+    @property
+    def _adb_mode(self):
+        """Returns whether this objects executes adb commands."""
+        return bool(self._serial_number)
+
     def AdbPull(self, src, dst):
+        if not self._adb_mode:
+            raise NotImplementedError("Cannot execute `adb pull` on device.")
         cmd = ["adb", "-s", self._serial_number, "pull", src, dst]
         env = os.environ.copy()
         if "ADB_COMPRESSION" not in env:
             env["ADB_COMPRESSION"] = "0"
-        subprocess.check_call(cmd, shell=False, env=env, stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(cmd, shell=False, env=env, check=True,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
 
     def Execute(self, *args):
         """Executes a command.
@@ -48,9 +64,12 @@ class AndroidDevice(object):
             Stdout as a string, stderr as a string, and return code as an
             integer.
         """
-        cmd = ["adb", "-s", self._serial_number, "shell"]
-        cmd.extend(args)
-        proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.PIPE,
+        if self._adb_mode:
+            cmd = ["adb", "-s", self._serial_number, "shell", shlex.join(args)]
+        else:
+            cmd = args
+
+        proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
         # Compatible with python2 and python3
@@ -245,8 +264,7 @@ class AndroidDevice(object):
         if '"' in name_pattern or "'" in name_pattern:
             raise ValueError("File name pattern contains quotes.")
         out, err, return_code = self.Execute("find", path, "-name",
-                                             "'" + name_pattern + "'",
-                                             *options)
+                                             name_pattern, *options)
         if return_code != 0 or err.strip():
             raise IOError("`find %s -name '%s' %s` stdout: %s\nstderr: %s" %
                           (path, name_pattern, " ".join(options), out, err))
