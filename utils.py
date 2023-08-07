@@ -57,6 +57,8 @@ class AndroidDevice(object):
     def Execute(self, *args):
         """Executes a command.
 
+        The caller should escape special characters.
+
         Args:
             args: Strings, the arguments.
 
@@ -65,11 +67,13 @@ class AndroidDevice(object):
             integer.
         """
         if self._adb_mode:
-            cmd = ["adb", "-s", self._serial_number, "shell", shlex.join(args)]
+            cmd = ["adb", "-s", self._serial_number, "shell"]
+            cmd.extend(args)
         else:
-            cmd = args
+            cmd = " ".join(args)
 
-        proc = subprocess.Popen(cmd, shell=False, stdin=subprocess.DEVNULL,
+        proc = subprocess.Popen(cmd, shell=not self._adb_mode,
+                                stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate()
         # Compatible with python2 and python3
@@ -264,7 +268,7 @@ class AndroidDevice(object):
         if '"' in name_pattern or "'" in name_pattern:
             raise ValueError("File name pattern contains quotes.")
         out, err, return_code = self.Execute("find", path, "-name",
-                                             name_pattern, *options)
+                                             f"'{name_pattern}'", *options)
         if return_code != 0 or err.strip():
             raise IOError("`find %s -name '%s' %s` stdout: %s\nstderr: %s" %
                           (path, name_pattern, " ".join(options), out, err))
