@@ -79,8 +79,8 @@ class AbiDumpResource:
         self.zip_file = None
 
     def __enter__(self):
-        self._resource = resources.open_binary(_RESOURCE_PACKAGE,
-                                               _ABI_DUMP_ZIP_NAME)
+        self._resource = resources.files(_RESOURCE_PACKAGE).joinpath(
+            _ABI_DUMP_ZIP_NAME).open("rb")
         self.zip_file = zipfile.ZipFile(self._resource, "r")
         return self
 
@@ -198,23 +198,28 @@ def LoadVndkLibraryListsFromResources(version, *tags):
         logging.error("Could not import resources module.")
         return None
 
-    version_str = (version if version and re.match("\\d+", version) else
-                   "current")
+    # VNDK 35 will not be frozen.
+    version_str = (version if re.match("\\d+", version) and int(version) <= 34
+                   else "current")
     vndk_lib_list_name = version_str + ".txt"
+    vndk_lib_list = resources.files(_RESOURCE_PACKAGE).joinpath(
+        vndk_lib_list_name)
     vndk_lib_extra_list_name = "vndk-lib-extra-list-" + version_str + ".txt"
+    vndk_lib_extra_list = resources.files(_RESOURCE_PACKAGE).joinpath(
+        vndk_lib_extra_list_name)
 
-    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_list_name):
+    if not vndk_lib_list.is_file():
         logging.warning("Cannot load %s.", vndk_lib_list_name)
         return None
 
-    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_extra_list_name):
+    if not vndk_lib_extra_list.is_file():
         logging.warning("Cannot load %s.", vndk_lib_extra_list_name)
         return None
 
     vndk_lists = tuple([] for x in tags)
 
-    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_list_name) as f:
+    with vndk_lib_list.open("r") as f:
         _LoadVndkLibraryListsFile(vndk_lists, tags, f)
-    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_extra_list_name) as f:
+    with vndk_lib_extra_list.open("r") as f:
         _LoadVndkLibraryListsFile(vndk_lists, tags, f)
     return vndk_lists
