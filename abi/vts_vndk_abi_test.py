@@ -307,6 +307,9 @@ class VtsVndkAbiTest(unittest.TestCase):
         Args:
             bitness: 32 or 64, the bitness of the tested libraries.
         """
+        if not vndk_utils.IsVndkRequired(self._dut):
+            logging.info("Skip the test as the device does not require VNDK.")
+            return
         self.assertTrue(self._dut.IsRoot(), "This test requires adb root.")
         primary_abi = self._dut.GetCpuAbiList()[0]
         binder_bitness = self._dut.GetBinderBitness()
