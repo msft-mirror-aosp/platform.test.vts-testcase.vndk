@@ -122,13 +122,16 @@ class VtsVndkFilesTest(unittest.TestCase):
         if unexpected:
             self._Fail(unexpected,
                        "%s must not contain %s libraries." %
-                       (vndk_dir, ", ",join(vndk_list_names)))
+                       (vndk_dir, ", ".join(vndk_list_names)))
 
     def _TestVndkCoreDirectory(self, bitness):
         """Verifies that VNDK directory doesn't contain extra files."""
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.info("Skip the test as VNDK runtime is not enforced on "
                          "the device.")
+            return
+        if not vndk_utils.IsVndkRequired(self._dut):
+            logging.info("Skip the test as the device does not require VNDK.")
             return
         self._TestVndkDirectory(
             vndk_utils.GetVndkDirectory(bitness, self._vndk_version),
