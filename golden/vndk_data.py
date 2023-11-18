@@ -198,8 +198,9 @@ def LoadVndkLibraryListsFromResources(version, *tags):
         logging.error("Could not import resources module.")
         return None
 
-    version_str = (version if version and re.match("\\d+", version) else
-                   "current")
+    # VNDK 35 will not be frozen.
+    version_str = (version if re.match("\\d+", version) and int(version) <= 34
+                   else "current")
     vndk_lib_list_name = version_str + ".txt"
     vndk_lib_extra_list_name = "vndk-lib-extra-list-" + version_str + ".txt"
 
