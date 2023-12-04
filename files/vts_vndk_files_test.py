@@ -133,6 +133,13 @@ class VtsVndkFilesTest(unittest.TestCase):
         if not vndk_utils.IsVndkRequired(self._dut):
             logging.info("Skip the test as the device does not require VNDK.")
             return
+        try:
+            if int(self._vndk_version) > 34:
+                logging.info("Skip the test as VNDK %s should be installed in "
+                             "vendor partition.", self._vndk_version)
+                return
+        except ValueError:
+            pass
         self._TestVndkDirectory(
             vndk_utils.GetVndkDirectory(bitness, self._vndk_version),
             (vndk_data.VNDK, vndk_data.VNDK_PRIVATE, vndk_data.VNDK_SP,
