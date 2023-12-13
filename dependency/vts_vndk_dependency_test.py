@@ -116,8 +116,10 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
         sp_hal_strings = vndk_lists[0]
         self._sp_hal = [re.compile(x) for x in sp_hal_strings]
-        (self._ll_ndk, self._vndk, self._vndk_sp) = vndk_lists[1:]
-        if not vndk_utils.IsVndkRequired(self._dut):
+        if vndk_utils.IsVndkRequired(self._dut):
+            (self._ll_ndk, self._vndk, self._vndk_sp) = vndk_lists[1:]
+        else:
+            self._ll_ndk = self._dut.GetLlndkList()
             (self._vndk, self._vndk_sp) = ([], [])
 
         logging.debug("LL_NDK: %s", self._ll_ndk)
