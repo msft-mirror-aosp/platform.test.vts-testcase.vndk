@@ -130,13 +130,10 @@ class VtsVndkFilesTest(unittest.TestCase):
             logging.info("Skip the test as VNDK runtime is not enforced on "
                          "the device.")
             return
-        try:
-            if int(self._vndk_version) > 34:
-                logging.info("Skip the test as VNDK %s should be installed in "
-                             "vendor partition.", self._vndk_version)
-                return
-        except ValueError:
-            pass
+        if vndk_utils.IsVndkInstalledInVendor(self._dut):
+            logging.info("Skip the test as VNDK %s should be installed in "
+                         "vendor partition.", self._vndk_version)
+            return
         self._TestVndkDirectory(
             vndk_utils.GetVndkDirectory(bitness, self._vndk_version),
             (vndk_data.VNDK, vndk_data.VNDK_PRIVATE, vndk_data.VNDK_SP,
