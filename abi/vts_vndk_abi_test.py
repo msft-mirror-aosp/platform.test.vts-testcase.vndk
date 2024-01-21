@@ -314,14 +314,11 @@ class VtsVndkAbiTest(unittest.TestCase):
         dump_version = self._dut.GetVndkVersion()
         self.assertTrue(dump_version, "Cannot determine VNDK version.")
 
-        # VNDK 35 will not be frozen.
-        try:
-            if int(dump_version) > 34:
-                logging.info("Skip the test. version: %s ABI: %s bitness: %d",
-                             dump_version, primary_abi, bitness)
-                return
-        except ValueError:
-            pass
+        if vndk_utils.IsVndkInstalledInVendor(self._dut):
+            logging.info("Skip the test as VNDK should be installed in vendor "
+                         "partition. version: %s ABI: %s bitness: %d",
+                         dump_version, primary_abi, bitness)
+            return
 
         dump_paths = vndk_data.GetAbiDumpPathsFromResources(
             dump_version,
