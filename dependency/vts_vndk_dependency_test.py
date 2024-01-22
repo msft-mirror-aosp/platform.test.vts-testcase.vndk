@@ -259,9 +259,8 @@ class VtsVndkDependencyTest(unittest.TestCase):
                                  target_path)
                     continue
                 if not self._IsElfObjectBuiltForAndroid(elf, target_path):
-                    logging.warning("%s is not built for Android, which is no "
-                                    "longer exempted.", target_path)
-
+                    logging.warning("%s is not built for Android", target_path)
+                    continue
                 deps, runpaths = elf.ListDependencies()
             except elf_parser.ElfError as e:
                 elf_error_handler(target_path, e)
