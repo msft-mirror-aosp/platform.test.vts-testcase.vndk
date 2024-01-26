@@ -450,7 +450,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
                 target_dir, abi_list,
                 lambda p, e: read_errors.append((p, str(e))))
 
-        dep_errors = self._TestElfDependency(32, objs)
+        dep_errors = []
+        if self._dut.GetCpuAbiList(32):
+            dep_errors.extend(self._TestElfDependency(32, objs))
         if self._dut.GetCpuAbiList(64):
             dep_errors.extend(self._TestElfDependency(64, objs))
 
