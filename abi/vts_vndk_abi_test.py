@@ -307,6 +307,10 @@ class VtsVndkAbiTest(unittest.TestCase):
         Args:
             bitness: 32 or 64, the bitness of the tested libraries.
         """
+        if not self._dut.GetCpuAbiList(bitness):
+            logging.info("Skip the test as the device doesn't support %d-bit "
+                         "ABI.", bitness)
+            return
         if not vndk_utils.IsVndkRequired(self._dut):
             logging.info("Skip the test as the device does not require VNDK.")
             return
@@ -360,11 +364,7 @@ class VtsVndkAbiTest(unittest.TestCase):
 
     def testAbiCompatibility64(self):
         """Checks ABI compliance of 64-bit VNDK libraries."""
-        if self._dut.GetCpuAbiList(64):
-            self._TestAbiCompatibility(64)
-        else:
-            logging.info("Skip the test as the device doesn't support 64-bit "
-                         "ABI.")
+        self._TestAbiCompatibility(64)
 
 
 if __name__ == "__main__":
