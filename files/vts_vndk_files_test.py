@@ -122,6 +122,10 @@ class VtsVndkFilesTest(unittest.TestCase):
 
     def _TestVndkCoreDirectory(self, bitness):
         """Verifies that VNDK directory doesn't contain extra files."""
+        if not self._dut.GetCpuAbiList(bitness):
+            logging.info("Skip the test as the device doesn't support %d-bit "
+                         "ABI.", bitness)
+            return
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.info("Skip the test as VNDK runtime is not enforced on "
                          "the device.")
@@ -144,14 +148,14 @@ class VtsVndkFilesTest(unittest.TestCase):
 
     def testVndkCoreDirectory64(self):
         """Runs _TestVndkCoreDirectory for 64-bit libraries."""
-        if self._dut.GetCpuAbiList(64):
-            self._TestVndkCoreDirectory(64)
-        else:
-            logging.info("Skip the test as the device doesn't support 64-bit "
-                         "ABI.")
+        self._TestVndkCoreDirectory(64)
 
     def _TestNoLlndkInVendor(self, bitness):
         """Verifies that vendor partition has no LL-NDK libraries."""
+        if not self._dut.GetCpuAbiList(bitness):
+            logging.info("Skip the test as the device doesn't support %d-bit "
+                         "ABI.", bitness)
+            return
         self._TestNoLlndkInDirectory(
             vndk_utils.FormatVndkPath(self._TARGET_VENDOR_LIB, bitness))
 
@@ -161,14 +165,14 @@ class VtsVndkFilesTest(unittest.TestCase):
 
     def testNoLlndkInVendor64(self):
         """Runs _TestNoLlndkInVendor for 64-bit libraries."""
-        if self._dut.GetCpuAbiList(64):
-            self._TestNoLlndkInVendor(64)
-        else:
-            logging.info("Skip the test as the device doesn't support 64-bit "
-                         "ABI.")
+        self._TestNoLlndkInVendor(64)
 
     def _TestNoLlndkInOdm(self, bitness):
         """Verifies that odm partition has no LL-NDK libraries."""
+        if not self._dut.GetCpuAbiList(bitness):
+            logging.info("Skip the test as the device doesn't support %d-bit "
+                         "ABI.", bitness)
+            return
         self._TestNoLlndkInDirectory(
             vndk_utils.FormatVndkPath(self._TARGET_ODM_LIB, bitness))
 
@@ -178,11 +182,7 @@ class VtsVndkFilesTest(unittest.TestCase):
 
     def testNoLlndkInOdm64(self):
         """Runs _TestNoLlndkInOdm for 64-bit libraries."""
-        if self._dut.GetCpuAbiList(64):
-            self._TestNoLlndkInOdm(64)
-        else:
-            logging.info("Skip the test as the device doesn't support 64-bit "
-                         "ABI.")
+        self._TestNoLlndkInOdm(64)
 
 
 if __name__ == "__main__":
