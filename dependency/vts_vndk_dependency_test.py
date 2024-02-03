@@ -33,6 +33,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
     Attributes:
         _dut: The AndroidDevice under test.
+        _vndk_version: The VNDK version of the device.
         _ll_ndk: Set of strings. The names of low-level NDK libraries in
                  /system/lib[64].
         _sp_hal: List of patterns. The names of the same-process HAL libraries
@@ -106,8 +107,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
         self._dut = utils.AndroidDevice()
         self.assertTrue(self._dut.IsRoot(), "This test requires adb root.")
 
+        self._vndk_version = self._dut.GetVndkVersion()
         vndk_lists = vndk_data.LoadVndkLibraryListsFromResources(
-            self._dut.GetVndkVersion(),
+            self._vndk_version,
             vndk_data.SP_HAL,
             vndk_data.LL_NDK,
             vndk_data.VNDK,
@@ -116,8 +118,14 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
         sp_hal_strings = vndk_lists[0]
         self._sp_hal = [re.compile(x) for x in sp_hal_strings]
-        (self._ll_ndk, self._vndk, self._vndk_sp) = vndk_lists[1:]
-        if not vndk_utils.IsVndkRequired(self._dut):
+        if vndk_utils.IsVndkRequired(self._dut):
+            self._ll_ndk = vndk_lists[1]
+            if vndk_utils.IsVndkInstalledInVendor(self._dut):
+                (self._vndk, self._vndk_sp) = ([], [])
+            else:
+                (self._vndk, self._vndk_sp) = vndk_lists[2:]
+        else:
+            self._ll_ndk = self._dut.GetLlndkList()
             (self._vndk, self._vndk_sp) = ([], [])
 
         logging.debug("LL_NDK: %s", self._ll_ndk)
@@ -233,9 +241,8 @@ class VtsVndkDependencyTest(unittest.TestCase):
                                  target_path)
                     continue
                 if not self._IsElfObjectBuiltForAndroid(elf, target_path):
-                    logging.warning("%s is not built for Android, which is no "
-                                    "longer exempted.", target_path)
-
+                    logging.warning("%s is not built for Android", target_path)
+                    continue
                 deps, runpaths = elf.ListDependencies()
             except elf_parser.ElfError as e:
                 elf_error_handler(target_path, e)
@@ -359,6 +366,17 @@ class VtsVndkDependencyTest(unittest.TestCase):
         sp_hal_namespace = self._FindLibsInLinkPaths(
             bitness, self._VENDOR_PERMITTED_PATHS, objs)
 
+        if vndk_utils.IsVndkInstalledInVendor(self._dut):
+            vndk_in_vendor = [
+                os.path.basename(lib_path) for lib_path in
+                self._dut.FindFiles(
+                    vndk_utils.GetVndkDirectory(bitness, self._vndk_version),
+                    "*", "!", "-type", "d")]
+            logging.info("%d-bit VNDK libraries installed in vendor: %s",
+                         bitness, vndk_in_vendor)
+        else:
+            vndk_in_vendor = []
+
         # Find same-process HAL and dependencies
         sp_hal_libs = set()
         for link_path in sp_hal_link_paths:
@@ -391,7 +409,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
                        obj not in vndk_sp_ext_deps}
         dep_errors = self._FindDisallowedDependencies(
             vendor_objs, vendor_namespace, vendor_link_paths,
-            self._ll_ndk, self._vndk, self._vndk_sp)
+            self._ll_ndk, self._vndk, self._vndk_sp, vndk_in_vendor)
 
         # A VNDK-SP extension library/dependency is allowed to depend on
         # LL-NDK
@@ -406,7 +424,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
         # restrictions are the same.
         dep_errors.extend(self._FindDisallowedDependencies(
             vndk_sp_ext_deps - sp_hal_libs, vendor_namespace,
-            vendor_link_paths, self._ll_ndk, self._vndk_sp))
+            vendor_link_paths, self._ll_ndk, self._vndk_sp, vndk_in_vendor))
 
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.warning("Ignore dependency errors: %s", dep_errors)
@@ -418,7 +436,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
         # Other same-process HAL libraries and dependencies
         dep_errors.extend(self._FindDisallowedDependencies(
             sp_hal_libs, sp_hal_namespace, sp_hal_link_paths,
-            self._ll_ndk, self._vndk_sp))
+            self._ll_ndk, self._vndk_sp, vndk_in_vendor))
         return dep_errors
 
     def testElfDependency(self):
@@ -431,7 +449,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
                 target_dir, abi_list,
                 lambda p, e: read_errors.append((p, str(e))))
 
-        dep_errors = self._TestElfDependency(32, objs)
+        dep_errors = []
+        if self._dut.GetCpuAbiList(32):
+            dep_errors.extend(self._TestElfDependency(32, objs))
         if self._dut.GetCpuAbiList(64):
             dep_errors.extend(self._TestElfDependency(64, objs))
 

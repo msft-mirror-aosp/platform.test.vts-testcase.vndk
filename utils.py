@@ -215,6 +215,19 @@ class AndroidDevice(object):
         else:
             return 64
 
+    def GetLlndkList(self):
+        """Loads the list of LLNDK library names from the device.
+
+        Returns:
+            A list of strings, the library names including ".so".
+        """
+        out, err, return_code = self.Execute("cat",
+                                             "/system/etc/llndk.libraries.txt")
+        if err.strip() or return_code != 0:
+            raise IOError("`cat /system/etc/llndk.libraries.txt` "
+                          f"stdout: {out}\nstderr: {err}\n")
+        return out.split()
+
     def IsRoot(self):
         """Returns whether adb has root privilege on the device."""
         out, err, return_code = self.Execute("id")
