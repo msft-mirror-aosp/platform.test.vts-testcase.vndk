@@ -18,11 +18,8 @@
 import collections
 import logging
 import os
-import posixpath as target_path_module
 import re
-import shutil
 import sys
-import tempfile
 import unittest
 
 from vts.testcases.vndk import utils
@@ -36,14 +33,14 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
     Attributes:
         _dut: The AndroidDevice under test.
-        _temp_dir: The temporary directory to which the odm and vendor
-                   partitions are copied.
+        _vndk_version: The VNDK version of the device.
         _ll_ndk: Set of strings. The names of low-level NDK libraries in
                  /system/lib[64].
         _sp_hal: List of patterns. The names of the same-process HAL libraries
                  expected to be in /vendor/lib[64].
         _vndk: Set of strings. The names of VNDK-core libraries.
         _vndk_sp: Set of strings. The names of VNDK-SP libraries.
+        _VENDOR_DIRS: The directories of vendor partitions.
         _SP_HAL_LINK_PATHS: Format strings of same-process HAL's default link
                             paths.
         _VENDOR_LINK_PATHS: Format strings of vendor processes' default link
@@ -52,11 +49,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
                                  permitted link paths.
         _VENDOR_APP_DIRS: The app directories in vendor partitions.
     """
-    _TARGET_DIR_SEP = "/"
-    _TARGET_ROOT_DIR = "/"
-    _TARGET_ODM_DIR = "/odm"
-    _TARGET_VENDOR_DIR = "/vendor"
-
+    _VENDOR_DIRS = [
+        "/odm", "/vendor"
+    ]
     _SP_HAL_LINK_PATHS = [
         "/odm/{LIB}/egl", "/odm/{LIB}/hw", "/odm/{LIB}",
         "/vendor/{LIB}/egl", "/vendor/{LIB}/hw", "/vendor/{LIB}"
@@ -92,8 +87,8 @@ class VtsVndkDependencyTest(unittest.TestCase):
         def __init__(self, target_path, bitness, deps, runpaths,
                      custom_link_paths):
             self.target_path = target_path
-            self.name = target_path_module.basename(target_path)
-            self.target_dir = target_path_module.dirname(target_path)
+            self.name = os.path.basename(target_path)
+            self.target_dir = os.path.dirname(target_path)
             self.bitness = bitness
             self.deps = deps
             # Format runpaths
@@ -108,22 +103,13 @@ class VtsVndkDependencyTest(unittest.TestCase):
             self.custom_link_paths = custom_link_paths
 
     def setUp(self):
-        """Initializes device, temporary directory, and VNDK lists."""
-        serial_number = os.environ.get("ANDROID_SERIAL")
-        self.assertTrue(serial_number, "$ANDROID_SERIAL is empty.")
-        self._dut = utils.AndroidDevice(serial_number)
+        """Initializes VNDK lists."""
+        self._dut = utils.AndroidDevice()
         self.assertTrue(self._dut.IsRoot(), "This test requires adb root.")
 
-        self._temp_dir = tempfile.mkdtemp()
-        for target_dir in (self._TARGET_ODM_DIR, self._TARGET_VENDOR_DIR):
-            if self._dut.IsDirectory(target_dir):
-                logging.info("adb pull %s %s", target_dir, self._temp_dir)
-                self._dut.AdbPull(target_dir, self._temp_dir)
-            else:
-                logging.info("Skip adb pull %s", target_dir)
-
+        self._vndk_version = self._dut.GetVndkVersion()
         vndk_lists = vndk_data.LoadVndkLibraryListsFromResources(
-            self._dut.GetVndkVersion(),
+            self._vndk_version,
             vndk_data.SP_HAL,
             vndk_data.LL_NDK,
             vndk_data.VNDK,
@@ -132,17 +118,20 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
         sp_hal_strings = vndk_lists[0]
         self._sp_hal = [re.compile(x) for x in sp_hal_strings]
-        (self._ll_ndk, self._vndk, self._vndk_sp) = vndk_lists[1:]
+        if vndk_utils.IsVndkRequired(self._dut):
+            self._ll_ndk = vndk_lists[1]
+            if vndk_utils.IsVndkInstalledInVendor(self._dut):
+                (self._vndk, self._vndk_sp) = ([], [])
+            else:
+                (self._vndk, self._vndk_sp) = vndk_lists[2:]
+        else:
+            self._ll_ndk = self._dut.GetLlndkList()
+            (self._vndk, self._vndk_sp) = ([], [])
 
         logging.debug("LL_NDK: %s", self._ll_ndk)
         logging.debug("SP_HAL: %s", sp_hal_strings)
         logging.debug("VNDK: %s", self._vndk)
         logging.debug("VNDK_SP: %s", self._vndk_sp)
-
-    def tearDown(self):
-        """Deletes the temporary directory."""
-        logging.info("Delete %s", self._temp_dir)
-        shutil.rmtree(self._temp_dir, ignore_errors=True)
 
     def _IsElfObjectForAp(self, elf, target_path, abi_list):
         """Checks whether an ELF object is for application processor.
@@ -213,26 +202,24 @@ class VtsVndkDependencyTest(unittest.TestCase):
         return True
 
     @staticmethod
-    def _IterateFiles(host_dir):
-        """Iterates files in a host directory.
+    def _IterateFiles(target_dir):
+        """Iterates files in a directory.
 
         Args:
-            host_dir: The host directory.
+            target_dir: The directory.
 
         Yields:
             The file paths under the directory.
         """
-        for root_dir, dir_names, file_names in os.walk(host_dir):
+        for root_dir, dir_names, file_names in os.walk(target_dir):
             for file_name in file_names:
                 yield os.path.join(root_dir, file_name)
 
-    def _LoadElfObjects(self, host_dir, target_dir, abi_list,
-                        elf_error_handler):
-        """Scans a host directory recursively and loads all ELF files in it.
+    def _LoadElfObjects(self, target_dir, abi_list, elf_error_handler):
+        """Scans a directory recursively and loads all ELF files in it.
 
         Args:
-            host_dir: The host directory to scan.
-            target_dir: The path from which host_dir is copied.
+            target_dir: The directory to scan.
             abi_list: A list of strings, the ABIs of the ELF files to load.
             elf_error_handler: A function that takes 2 arguments
                                (target_path, exception). It is called when
@@ -242,12 +229,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
             List of ElfObject.
         """
         objs = []
-        for full_path in self._IterateFiles(host_dir):
-            rel_path = os.path.relpath(full_path, host_dir)
-            target_path = target_path_module.join(
-                target_dir, *rel_path.split(os.path.sep))
+        for target_path in self._IterateFiles(target_dir):
             try:
-                elf = elf_parser.ElfParser(full_path)
+                elf = elf_parser.ElfParser(target_path)
             except elf_parser.ElfError:
                 logging.debug("%s is not an ELF file", target_path)
                 continue
@@ -274,10 +258,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
             # b/123216664 App libraries depend on those in the same directory.
             custom_link_paths = []
-            if any(target_path.startswith(app_dir + self._TARGET_DIR_SEP) for
+            if any(target_path.startswith(app_dir + os.path.sep) for
                     app_dir in self._VENDOR_APP_DIRS):
-                custom_link_paths.append(
-                    target_path_module.dirname(target_path))
+                custom_link_paths.append(os.path.dirname(target_path))
 
             objs.append(self.ElfObject(target_path, elf.bitness, deps,
                                        runpaths, custom_link_paths))
@@ -299,8 +282,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
         namespace = collections.defaultdict(dict)
         for obj in objs:
             if (obj.bitness == bitness and
-                    any(obj.target_path.startswith(link_path +
-                                                   self._TARGET_DIR_SEP)
+                    any(obj.target_path.startswith(link_path + os.path.sep)
                         for link_path in link_paths)):
                 namespace[obj.target_dir][obj.name] = obj
         return namespace
@@ -385,6 +367,17 @@ class VtsVndkDependencyTest(unittest.TestCase):
         sp_hal_namespace = self._FindLibsInLinkPaths(
             bitness, self._VENDOR_PERMITTED_PATHS, objs)
 
+        if vndk_utils.IsVndkInstalledInVendor(self._dut):
+            vndk_in_vendor = [
+                os.path.basename(lib_path) for lib_path in
+                self._dut.FindFiles(
+                    vndk_utils.GetVndkDirectory(bitness, self._vndk_version),
+                    "*", "!", "-type", "d")]
+            logging.info("%d-bit VNDK libraries installed in vendor: %s",
+                         bitness, vndk_in_vendor)
+        else:
+            vndk_in_vendor = []
+
         # Find same-process HAL and dependencies
         sp_hal_libs = set()
         for link_path in sp_hal_link_paths:
@@ -417,7 +410,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
                        obj not in vndk_sp_ext_deps}
         dep_errors = self._FindDisallowedDependencies(
             vendor_objs, vendor_namespace, vendor_link_paths,
-            self._ll_ndk, self._vndk, self._vndk_sp)
+            self._ll_ndk, self._vndk, self._vndk_sp, vndk_in_vendor)
 
         # A VNDK-SP extension library/dependency is allowed to depend on
         # LL-NDK
@@ -432,7 +425,7 @@ class VtsVndkDependencyTest(unittest.TestCase):
         # restrictions are the same.
         dep_errors.extend(self._FindDisallowedDependencies(
             vndk_sp_ext_deps - sp_hal_libs, vendor_namespace,
-            vendor_link_paths, self._ll_ndk, self._vndk_sp))
+            vendor_link_paths, self._ll_ndk, self._vndk_sp, vndk_in_vendor))
 
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.warning("Ignore dependency errors: %s", dep_errors)
@@ -444,18 +437,22 @@ class VtsVndkDependencyTest(unittest.TestCase):
         # Other same-process HAL libraries and dependencies
         dep_errors.extend(self._FindDisallowedDependencies(
             sp_hal_libs, sp_hal_namespace, sp_hal_link_paths,
-            self._ll_ndk, self._vndk_sp))
+            self._ll_ndk, self._vndk_sp, vndk_in_vendor))
         return dep_errors
 
     def testElfDependency(self):
         """Tests vendor libraries/executables and SP-HAL dependencies."""
         read_errors = []
         abi_list = self._dut.GetCpuAbiList()
-        objs = self._LoadElfObjects(
-            self._temp_dir, self._TARGET_ROOT_DIR, abi_list,
-            lambda p, e: read_errors.append((p, str(e))))
+        objs = []
+        for target_dir in self._VENDOR_DIRS:
+            objs += self._LoadElfObjects(
+                target_dir, abi_list,
+                lambda p, e: read_errors.append((p, str(e))))
 
-        dep_errors = self._TestElfDependency(32, objs)
+        dep_errors = []
+        if self._dut.GetCpuAbiList(32):
+            dep_errors.extend(self._TestElfDependency(32, objs))
         if self._dut.GetCpuAbiList(64):
             dep_errors.extend(self._TestElfDependency(64, objs))
 
@@ -482,9 +479,6 @@ class VtsVndkDependencyTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # The logs are written to stdout so that TradeFed test runner can parse the
-    # results from stderr.
+    # Write logs to stdout and results to stderr.
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    # Setting verbosity is required to generate output that the TradeFed test
-    # runner can parse.
     unittest.main(verbosity=3)

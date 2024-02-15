@@ -79,8 +79,8 @@ class AbiDumpResource:
         self.zip_file = None
 
     def __enter__(self):
-        self._resource = resources.open_binary(_RESOURCE_PACKAGE,
-                                               _ABI_DUMP_ZIP_NAME)
+        self._resource = resources.files(_RESOURCE_PACKAGE).joinpath(
+            _ABI_DUMP_ZIP_NAME).open("rb")
         self.zip_file = zipfile.ZipFile(self._resource, "r")
         return self
 
@@ -137,31 +137,50 @@ def GetAbiDumpPathsFromResources(version, binder_bitness, abi_name, abi_bitness)
     return dump_paths
 
 
-def _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_file):
+def _LoadVndkLibraryListsFile(vndk_lists, tags, vndk_lib_list_file,
+                              change_history_file=None):
     """Load VNDK libraries from the file to the specified tuple.
 
     Args:
         vndk_lists: The output tuple of lists containing library names.
         tags: Strings, the tags of the libraries to find.
         vndk_lib_list_file: The file object containing the VNDK library list.
+        change_history_file: The file object containing the VNDK list change
+            history. It adds the vndk files that are removed.
     """
+    def ReadTagAndFile(line):
+        # Ignore comments.
+        if line.startswith('#'):
+            return None, None
+
+        # Split columns.
+        cells = line.split(': ', 1)
+        if len(cells) < 2:
+            return None, None
+        return cells[0].strip(), cells[1].strip()
 
     lib_sets = collections.defaultdict(set)
 
     # Load VNDK tags from the list.
     for line in vndk_lib_list_file:
-        # Ignore comments.
-        if line.startswith('#'):
+        tag, lib_name = ReadTagAndFile(line)
+        if not tag:
             continue
-
-        # Split columns.
-        cells = line.split(': ', 1)
-        if len(cells) < 2:
-            continue
-        tag = cells[0]
-        lib_name = cells[1].strip()
-
         lib_sets[tag].add(lib_name)
+
+    if change_history_file:
+        for line in change_history_file:
+            tag, lib_name = ReadTagAndFile(line)
+            if not tag:
+                continue
+
+            # In the history file, tag has '+' prefix if the file is added and
+            # '-' prefix if removed.
+            # To relax the test, include the removed files to the list.
+            if tag[0] != '-':
+                continue
+            tag = tag[1:]
+            lib_sets[tag].add(lib_name)
 
     # Compute VNDK-core-private and VNDK-SP-private.
     private = lib_sets.get('VNDK-private', set())
@@ -198,23 +217,35 @@ def LoadVndkLibraryListsFromResources(version, *tags):
         logging.error("Could not import resources module.")
         return None
 
-    version_str = (version if version and re.match("\\d+", version) else
-                   "current")
+    # VNDK 35 will not be frozen.
+    version_str = (version if re.match("\\d+", version) and int(version) <= 34
+                   else "current")
     vndk_lib_list_name = version_str + ".txt"
+    vndk_lib_list = resources.files(_RESOURCE_PACKAGE).joinpath(
+        vndk_lib_list_name)
+    vndk_lib_list_history_name = version_str + "_history.txt"
+    vndk_lib_list_history = resources.files(_RESOURCE_PACKAGE).joinpath(
+        vndk_lib_list_history_name)
     vndk_lib_extra_list_name = "vndk-lib-extra-list-" + version_str + ".txt"
+    vndk_lib_extra_list = resources.files(_RESOURCE_PACKAGE).joinpath(
+        vndk_lib_extra_list_name)
 
-    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_list_name):
+    if not vndk_lib_list.is_file():
         logging.warning("Cannot load %s.", vndk_lib_list_name)
         return None
 
-    if not resources.is_resource(_RESOURCE_PACKAGE, vndk_lib_extra_list_name):
+    if not vndk_lib_extra_list.is_file():
         logging.warning("Cannot load %s.", vndk_lib_extra_list_name)
         return None
 
     vndk_lists = tuple([] for x in tags)
 
-    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_list_name) as f:
-        _LoadVndkLibraryListsFile(vndk_lists, tags, f)
-    with resources.open_text(_RESOURCE_PACKAGE, vndk_lib_extra_list_name) as f:
+    with vndk_lib_list.open("r") as f:
+        if vndk_lib_list_history.is_file():
+            with vndk_lib_list_history.open("r") as history:
+                _LoadVndkLibraryListsFile(vndk_lists, tags, f, history)
+        else:
+            _LoadVndkLibraryListsFile(vndk_lists, tags, f)
+    with vndk_lib_extra_list.open("r") as f:
         _LoadVndkLibraryListsFile(vndk_lists, tags, f)
     return vndk_lists

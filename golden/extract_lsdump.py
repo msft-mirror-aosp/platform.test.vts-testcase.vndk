@@ -284,10 +284,9 @@ def main():
     #                    the large file group.
     if zipfile.is_zipfile(args.input_path):
         with zipfile.ZipFile(args.input_path, mode='r') as input_zip:
-            # The zip will be added to a Python package. It is not necessary
-            # to reduce the file size.
-            with zipfile.ZipFile(args.output_path, mode='w',
-                                 compression=zipfile.ZIP_STORED) as output_zip:
+            with zipfile.ZipFile(
+                    args.output_path, mode='w',
+                    compression=zipfile.ZIP_DEFLATED) as output_zip:
                 _ParseLsdumpZipFile(input_zip, output_zip)
         sys.exit(0)
 
