@@ -101,28 +101,24 @@ class VtsVndkFilesTest(unittest.TestCase):
                        "The above libraries are not %s." %
                        ", ".join(vndk_list_names))
 
-    def _TestNotInVndkDirecotory(self, vndk_dir, vndk_list_names, except_libs):
-        """Verifies that VNDK directory doesn't contain specific files.
+    def _TestNoLlndkInDirectory(self, lib_dir):
+        """Verifies that the vendor directory doesn't contain LLNDK libraries.
 
         Args:
-            vndk_dir, The path to the VNDK directory on device.
-            vndk_list_names: A list of strings, the categories of the VNDK
-                             libraries that should not be in the directory.
-            except_libs: A set of strings, the file names of the libraries that
-                         are exceptions to this test.
+            lib_dir: The path to the directory on device.
         """
-        vndk_lists = vndk_data.LoadVndkLibraryListsFromResources(
-            self._vndk_version, *vndk_list_names)
-        self.assertTrue(vndk_lists, "Cannot load VNDK library lists.")
-        vndk_set = set().union(*vndk_lists)
-        vndk_set.difference_update(except_libs)
-        logging.debug("vndk set: %s", vndk_set)
-        unexpected = [x for x in self._ListFiles(vndk_dir) if
-                      target_path_module.basename(x) in vndk_set]
+        if vndk_utils.IsVndkRequired(self._dut):
+            llndk_list = vndk_data.LoadVndkLibraryListsFromResources(
+                self._vndk_version, vndk_data.LL_NDK)[0]
+        else:
+            llndk_list = self._dut.GetLlndkList()
+        llndk_set = set(llndk_list).difference(self._LL_NDK_COLLIDING_NAMES)
+        logging.debug("llndk set: %s", llndk_set)
+        unexpected = [x for x in self._ListFiles(lib_dir) if
+                      target_path_module.basename(x) in llndk_set]
         if unexpected:
             self._Fail(unexpected,
-                       "%s must not contain %s libraries." %
-                       (vndk_dir, ", ",join(vndk_list_names)))
+                       lib_dir + " must not contain LLNDK libraries.")
 
     def _TestVndkCoreDirectory(self, bitness):
         """Verifies that VNDK directory doesn't contain extra files."""
@@ -133,6 +129,9 @@ class VtsVndkFilesTest(unittest.TestCase):
         if not vndk_utils.IsVndkRuntimeEnforced(self._dut):
             logging.info("Skip the test as VNDK runtime is not enforced on "
                          "the device.")
+            return
+        if not vndk_utils.IsVndkRequired(self._dut):
+            logging.info("Skip the test as the device does not require VNDK.")
             return
         if vndk_utils.IsVndkInstalledInVendor(self._dut):
             logging.info("Skip the test as VNDK %s should be installed in "
@@ -157,10 +156,8 @@ class VtsVndkFilesTest(unittest.TestCase):
             logging.info("Skip the test as the device doesn't support %d-bit "
                          "ABI.", bitness)
             return
-        self._TestNotInVndkDirecotory(
-            vndk_utils.FormatVndkPath(self._TARGET_VENDOR_LIB, bitness),
-            (vndk_data.LL_NDK,),
-            self._LL_NDK_COLLIDING_NAMES)
+        self._TestNoLlndkInDirectory(
+            vndk_utils.FormatVndkPath(self._TARGET_VENDOR_LIB, bitness))
 
     def testNoLlndkInVendor32(self):
         """Runs _TestNoLlndkInVendor for 32-bit libraries."""
@@ -176,10 +173,8 @@ class VtsVndkFilesTest(unittest.TestCase):
             logging.info("Skip the test as the device doesn't support %d-bit "
                          "ABI.", bitness)
             return
-        self._TestNotInVndkDirecotory(
-            vndk_utils.FormatVndkPath(self._TARGET_ODM_LIB, bitness),
-            (vndk_data.LL_NDK,),
-            self._LL_NDK_COLLIDING_NAMES)
+        self._TestNoLlndkInDirectory(
+            vndk_utils.FormatVndkPath(self._TARGET_ODM_LIB, bitness))
 
     def testNoLlndkInOdm32(self):
         """Runs _TestNoLlndkInOdm for 32-bit libraries."""
