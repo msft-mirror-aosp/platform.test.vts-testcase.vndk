@@ -99,6 +99,8 @@ class VtsVndkDependencyTest(unittest.TestCase):
                 path = path.replace("$LIB", lib_dir_name)
                 path = path.replace("${ORIGIN}", self.target_dir)
                 path = path.replace("$ORIGIN", self.target_dir)
+                # os.path.join ignores self.target_dir if path is absolute.
+                path = os.path.normpath(os.path.join(self.target_dir, path))
                 self.runpaths.append(path)
             self.custom_link_paths = custom_link_paths
 
@@ -337,6 +339,29 @@ class VtsVndkDependencyTest(unittest.TestCase):
                 dep_errors.append((obj.target_path, disallowed_libs))
         return dep_errors
 
+    def _FindDisallowedRunpaths(self, objs, permitted_paths):
+        """Tests if libraries/executables have disallowed RUNPATHs.
+
+        Args:
+            objs: Collection of ElfObject, the libraries/executables under
+                  test.
+            permitted_paths: List of strings, the absolute permitted paths.
+
+        Returns:
+            List of tuples (path, disallowed_runpaths).
+        """
+        dep_errors = []
+        for obj in objs:
+            disallowed_runpaths = [
+                runpath for runpath in obj.runpaths if
+                not any(os.path.commonpath((runpath, prefix)) == prefix
+                        for prefix in permitted_paths)]
+
+            if disallowed_runpaths:
+                dep_errors.append(
+                    (obj.target_path + "[RUNPATH]", disallowed_runpaths))
+        return dep_errors
+
     def _TestElfDependency(self, bitness, objs):
         """Tests vendor libraries/executables and SP-HAL dependencies.
 
@@ -399,6 +424,12 @@ class VtsVndkDependencyTest(unittest.TestCase):
         logging.info("%d-bit VNDK-SP extension libraries and dependencies: %s",
                      bitness, ", ".join(x.name for x in vndk_sp_ext_deps))
 
+        # A library/executable in vendor partitions must not have RUNPATH
+        # outside of vendor partitions.
+        dep_errors = self._FindDisallowedRunpaths(
+            [obj for obj in objs if obj.bitness == bitness],
+            self._VENDOR_PERMITTED_PATHS)
+
         # A vendor library/executable is allowed to depend on
         # LL-NDK
         # VNDK
@@ -408,9 +439,9 @@ class VtsVndkDependencyTest(unittest.TestCase):
                        obj.bitness == bitness and
                        obj not in sp_hal_libs and
                        obj not in vndk_sp_ext_deps}
-        dep_errors = self._FindDisallowedDependencies(
+        dep_errors.extend(self._FindDisallowedDependencies(
             vendor_objs, vendor_namespace, vendor_link_paths,
-            self._ll_ndk, self._vndk, self._vndk_sp, vndk_in_vendor)
+            self._ll_ndk, self._vndk, self._vndk_sp, vndk_in_vendor))
 
         # A VNDK-SP extension library/dependency is allowed to depend on
         # LL-NDK
