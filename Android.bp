@@ -27,7 +27,7 @@ python_library {
     ],
     data: [
         ":vndk_lib_lists",
-        ":vndk_lib_extra_lists"
+        ":vndk_lib_extra_lists",
     ],
 }
 
@@ -37,11 +37,6 @@ python_defaults {
         "vndk_utils",
         "vts_vndk_utils",
     ],
-    version: {
-        py3: {
-            embedded_launcher: true,
-        }
-    }
 }
 
 // TODO(b/243602514): Python data should not be put in testcases dir.
