@@ -20,11 +20,6 @@ python_binary_host {
     name: "extract_lsdump",
     main: "extract_lsdump.py",
     srcs: ["extract_lsdump.py"],
-    version: {
-        py3: {
-            embedded_launcher: true,
-        },
-    }
 }
 
 // TODO(b/150663999): Replace with gensrcs when the build system is able to
