@@ -39,6 +39,12 @@ class VtsVndkFilesTest(unittest.TestCase):
     # errors on these LL-NDK libraries.
     _LL_NDK_COLLIDING_NAMES = ("libEGL.so", "libGLESv1_CM.so", "libGLESv2.so",
                                "libGLESv3.so")
+    # Some LLNDK libraries were installed in the vendor partition but promoted
+    # to LLNDK librararies. List those libraries with the API level in which the
+    # libraries were promoted to LLNDK.
+    _LL_NDK_ALLOWED_NAMES = {
+        202604: ("libcamera_metadata.so",),
+    }
     _TARGET_ODM_LIB = "/odm/{LIB}"
     _TARGET_VENDOR_LIB = "/vendor/{LIB}"
 
@@ -113,6 +119,10 @@ class VtsVndkFilesTest(unittest.TestCase):
         else:
             llndk_list = self._dut.GetLlndkList()
         llndk_set = set(llndk_list).difference(self._LL_NDK_COLLIDING_NAMES)
+        board_api_level = self._dut.GetBoardApiLevel()
+        for api_level, names in self._LL_NDK_ALLOWED_NAMES.items():
+            if not board_api_level or int(board_api_level) < api_level:
+                llndk_set.difference_update(names)
         logging.debug("llndk set: %s", llndk_set)
         unexpected = [x for x in self._ListFiles(lib_dir) if
                       target_path_module.basename(x) in llndk_set]

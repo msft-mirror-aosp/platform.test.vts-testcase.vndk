@@ -170,6 +170,10 @@ class AndroidDevice(object):
         """Gets the VNDK version that the vendor partition requests."""
         return self._GetProp("ro.vndk.version")
 
+    def GetBoardApiLevel(self):
+        """Gets the Board API level from the  vendor partition."""
+        return self._GetProp("ro.board.api_level")
+
     def GetKernelConfig(self, config_name):
         """Gets kernel config from the device.
 
